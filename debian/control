@@ -1,0 +1,12 @@
+Package: xray-vpn
+Version: 0.1.0
+Section: net
+Priority: optional
+Architecture: amd64
+Depends: systemd
+Maintainer: Gleb Ivanov <realglebivanov@gmail.com>
+Description: Xray TUN VPN with automatic route management
+ Single daemon embedding xray-core with TUN mode.
+ Fetches Russian IP ranges at startup, injects routing rules,
+ manages fwmark-based split routing via netlink.
+ Control: xray-vpn start|stop|status

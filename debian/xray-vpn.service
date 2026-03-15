@@ -1,0 +1,19 @@
+[Unit]
+Description=Xray VPN daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+AmbientCapabilities=CAP_NET_ADMIN
+Environment="XRAY_LOCATION_ASSET=/usr/share/xray-vpn"
+ExecStart=/usr/bin/xray-vpnd
+PIDFile=/run/xray-vpn/xray-vpn.pid
+Restart=on-failure
+RestartSec=5
+User=xray-vpn
+Group=xray-vpn
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

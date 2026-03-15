@@ -1,0 +1,4 @@
+#!/bin/sh
+set -e
+systemctl stop xray-vpn.service 2>/dev/null || true
+systemctl disable xray-vpn.service 2>/dev/null || true
