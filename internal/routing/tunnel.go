@@ -7,11 +7,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/realglebivanov/xray-vpn/internal/routing/state"
 	"github.com/vishvananda/netlink"
 )
 
 type Tunnel struct {
-	Gw      *DefaultGateway
+	Gw      *state.DefaultGateway
 	TunLink netlink.Link
 	TunAddr *netlink.Addr
 }
@@ -32,7 +33,7 @@ func TearDownTunnel(tun *Tunnel) error {
 }
 
 func SetUpTunnel() (*Tunnel, error) {
-	gw, err := detectDefaultGateway()
+	gw, err := preserveDefaultGateway()
 	if err != nil {
 		return nil, err
 	}

@@ -6,6 +6,7 @@ import (
 	"log"
 	"syscall"
 
+	"github.com/realglebivanov/xray-vpn/internal/routing/state"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
@@ -69,7 +70,7 @@ func buildDefaultRoute(tun *Tunnel) *netlink.Route {
 	}
 }
 
-func buildDirectRoute(gw *DefaultGateway) *netlink.Route {
+func buildDirectRoute(gw *state.DefaultGateway) *netlink.Route {
 	return &netlink.Route{
 		Dst:       nil,
 		Gw:        gw.IP,
