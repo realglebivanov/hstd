@@ -17,14 +17,18 @@ const (
 )
 
 func BuildCoreConfig() (*core.Config, error) {
-	ruCIDRs, err := fetchRuCIDRs()
+	if err := loadGeodata(); err != nil {
+		return nil, fmt.Errorf("load geodata: %w", err)
+	}
+
+	ruCIDRs, err := loadRuCIDRs()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load ru CIDRS: %w", err)
 	}
 
 	proxyOut, err := buildProxyOutbound()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("build proxy outbound: %w", err)
 	}
 
 	xrayCfg := &conf.Config{

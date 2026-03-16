@@ -61,6 +61,25 @@ func (s *Supervisor) stop() {
 	s.stopLocked()
 }
 
+func (s *Supervisor) refresh() {
+	if err := config.RefreshGeodata(); err != nil {
+		log.Printf("refresh geodata failed: %v", err)
+		return
+	}
+	if _, err := config.RefreshRuCIDRs(); err != nil {
+		log.Printf("refresh CIDRs failed: %v", err)
+		return
+	}
+	if !s.running {
+		log.Println("data refreshed (not running, skipping restart)")
+		return
+	}
+	log.Println("data refreshed, restarting with new data ...")
+	if err := s.start(); err != nil {
+		log.Printf("restart after refresh failed: %v", err)
+	}
+}
+
 func (s *Supervisor) stopLocked() {
 	if s.tun != nil {
 		routing.TearDownTunnel(s.tun)

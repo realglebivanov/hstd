@@ -10,23 +10,24 @@ if ! getent passwd xray-vpn > /dev/null 2>&1; then
             --ingroup xray-vpn xray-vpn
 fi
 
-echo "xray-vpn: placeholder config at /etc/xray/config.json"
+echo "xray-vpn: placeholder config at /etc/xray-vpn/config.json"
 echo "xray-vpn: edit with your proxy outbound, then: systemctl start xray-vpn"
 echo "xray-vpn: to allow a user to control the service, run: usermod -aG xray-vpn <username>"
 
-mkdir -p /run/xray-vpn
+mkdir -p /run/xray-vpn /var/cache/xray-vpn
 
 chown xray-vpn:xray-vpn /usr/bin/xray-vpnd
 chown xray-vpn:xray-vpn /usr/bin/xray-vpn
-chown -R xray-vpn:xray-vpn /etc/xray-vpn /usr/share/xray-vpn /run/xray-vpn
+chown -R xray-vpn:xray-vpn /etc/xray-vpn /run/xray-vpn /var/cache/xray-vpn
 
 chmod 4550 /usr/bin/xray-vpn
 chmod 500 /usr/bin/xray-vpnd
-chmod 500 /usr/share/xray-vpn/geoip.dat
-chmod 500 /usr/share/xray-vpn/geosite.dat
 chmod 500 /etc/xray-vpn
 chmod 500 /etc/xray-vpn/config.json
 chmod 700 /run/xray-vpn
+chmod 700 /var/cache/xray-vpn
 
 systemctl daemon-reload
 systemctl enable xray-vpn.service || true
+systemctl enable --now xray-vpn-refresh.timer || true
+systemctl restart xray-vpn.service || true

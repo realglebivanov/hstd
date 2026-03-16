@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh xray-vpn geodata and RU CIDRs
+After=xray-vpn.service
+Requires=xray-vpn.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/xray-vpn refresh
+User=xray-vpn
+

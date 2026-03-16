@@ -18,10 +18,10 @@ deb: build
 	rm -rf $(STAGE)
 	install -Dm755 target/xray-vpnd        $(STAGE)/usr/bin/xray-vpnd
 	install -Dm755 target/xray-vpn         $(STAGE)/usr/bin/xray-vpn
-	install -Dm644 debian/xray-vpn.service $(STAGE)/lib/systemd/system/xray-vpn.service
+	install -Dm644 debian/xray-vpn.service         $(STAGE)/lib/systemd/system/xray-vpn.service
+	install -Dm644 debian/xray-vpn-refresh.service $(STAGE)/lib/systemd/system/xray-vpn-refresh.service
+	install -Dm644 debian/xray-vpn-refresh.timer   $(STAGE)/lib/systemd/system/xray-vpn-refresh.timer
 	install -Dm644 debian/config.json 	   $(STAGE)/etc/xray-vpn/config.json
-	install -Dm644 debian/geoip.dat 	   $(STAGE)/usr/share/xray-vpn/geoip.dat
-	install -Dm644 debian/geosite.dat 	   $(STAGE)/usr/share/xray-vpn/geosite.dat
 	install -d     						   $(STAGE)/DEBIAN
 	install -m755  debian/postinst         $(STAGE)/DEBIAN/postinst
 	install -m755  debian/prerm            $(STAGE)/DEBIAN/prerm

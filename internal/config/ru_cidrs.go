@@ -2,92 +2,55 @@ package config
 
 import (
 	"fmt"
-	"io"
 	"log"
-	"math"
-	"net/http"
-	"strconv"
+	"os"
 	"strings"
-	"time"
+
+	"github.com/realglebivanov/xray-vpn/internal/config/ru_cidrs"
 )
 
-var cidrUrls = []string{
-	"https://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-extended-latest",
-	"https://ftp.apnic.net/stats/apnic/delegated-apnic-extended-latest",
-	"https://ftp.arin.net/pub/stats/arin/delegated-arin-extended-latest",
-	"https://ftp.lacnic.net/pub/stats/lacnic/delegated-lacnic-extended-latest",
-	"https://ftp.afrinic.net/pub/stats/afrinic/delegated-afrinic-extended-latest",
+const cidrCachePath = cacheDir + "/ru_cidrs.txt"
+
+func loadRuCIDRs() ([]string, error) {
+	cr := readCache(cidrCachePath)
+	switch cr.State {
+	case cacheFresh:
+		cidrs := unmarshalCIDRs(cr.Data)
+		log.Printf("loaded %d cached RU CIDRs from %s", len(cidrs), cidrCachePath)
+		return cidrs, nil
+	case cacheStale:
+		cidrs := unmarshalCIDRs(cr.Data)
+		log.Printf("loaded %d stale RU CIDRs from %s, will refresh in background", len(cidrs), cidrCachePath)
+		go RefreshRuCIDRs()
+		return cidrs, nil
+	case cacheMissing:
+		return RefreshRuCIDRs()
+	case cacheError:
+		return nil, fmt.Errorf("read CIDR cache: %w", cr.Err)
+	default:
+		return nil, fmt.Errorf("unexpected cache state %d", cr.State)
+	}
 }
 
-func fetchRuCIDRs() ([]string, error) {
-	log.Println("fetching Russian CIDRs from all RIRs...")
-
-	type result struct {
-		cidrs []string
-		err   error
-		url   string
+func RefreshRuCIDRs() ([]string, error) {
+	cidrs, err := ru_cidrs.FetchRuCIDRs()
+	if err != nil {
+		return nil, err
 	}
-
-	results := make(chan result, len(cidrUrls))
-	client := &http.Client{Timeout: 30 * time.Second}
-
-	for _, url := range cidrUrls {
-		go func(url string) {
-			cidrs, err := fetchAndParseRIR(client, url)
-			results <- result{cidrs, err, url}
-		}(url)
+	if err := os.WriteFile(cidrCachePath, []byte(strings.Join(cidrs, "\n")+"\n"), 0700); err != nil {
+		log.Printf("warning: failed to write CIDR cache: %v", err)
+	} else {
+		log.Printf("wrote %d CIDRs to %s", len(cidrs), cidrCachePath)
 	}
-
-	seen := make(map[string]struct{})
-	var cidrs []string
-
-	for range cidrUrls {
-		r := <-results
-		if r.err != nil {
-			log.Printf("warning: failed to fetch %s: %v", r.url, r.err)
-			continue
-		}
-		for _, cidr := range r.cidrs {
-			if _, ok := seen[cidr]; !ok {
-				seen[cidr] = struct{}{}
-				cidrs = append(cidrs, cidr)
-			}
-		}
-	}
-
-	log.Printf("fetched %d unique RU CIDRs", len(cidrs))
 	return cidrs, nil
 }
 
-func fetchAndParseRIR(client *http.Client, url string) ([]string, error) {
-	resp, err := client.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("fetch %s: %w", url, err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", url, err)
-	}
-
+func unmarshalCIDRs(data []byte) []string {
 	var cidrs []string
-	for line := range strings.SplitSeq(string(body), "\n") {
-		fields := strings.Split(line, "|")
-		if len(fields) < 5 {
-			continue
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		if line != "" {
+			cidrs = append(cidrs, line)
 		}
-		if fields[1] != "RU" || fields[2] != "ipv4" {
-			continue
-		}
-		ip := fields[3]
-		count, err := strconv.Atoi(fields[4])
-		if err != nil || count == 0 {
-			continue
-		}
-		bits := 32 - int(math.Log2(float64(count)))
-		cidrs = append(cidrs, fmt.Sprintf("%s/%d", ip, bits))
 	}
-
-	return cidrs, nil
+	return cidrs
 }

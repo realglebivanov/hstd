@@ -16,13 +16,12 @@ func Run() error {
 	}
 
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGUSR1, syscall.SIGUSR2, syscall.SIGTERM, syscall.SIGINT)
+	signal.Notify(sigCh, syscall.SIGUSR1, syscall.SIGUSR2, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGINT)
 
 	for sig := range sigCh {
 		switch sig {
 		case syscall.SIGUSR2:
 			log.Println("SIGUSR2: (re)starting ...")
-			s.stop()
 			if err := s.start(); err != nil {
 				log.Printf("start failed: %v", err)
 			}
@@ -30,6 +29,10 @@ func Run() error {
 		case syscall.SIGUSR1:
 			log.Println("SIGUSR1: stopping ...")
 			s.stop()
+
+		case syscall.SIGHUP:
+			log.Println("SIGHUP: refreshing RU CIDRs and geodata ...")
+			s.refresh()
 
 		case syscall.SIGTERM, syscall.SIGINT:
 			log.Println("shutting down ...")

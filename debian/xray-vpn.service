@@ -1,12 +1,14 @@
 [Unit]
 Description=Xray VPN daemon
 After=network-online.target
-Wants=network-online.target
+Requires=network-online.target
 
 [Service]
 Type=simple
 AmbientCapabilities=CAP_NET_ADMIN
-Environment="XRAY_LOCATION_ASSET=/usr/share/xray-vpn"
+RuntimeDirectory=xray-vpn
+CacheDirectory=xray-vpn
+Environment="XRAY_LOCATION_ASSET=/var/cache/xray-vpn"
 ExecStart=/usr/bin/xray-vpnd
 PIDFile=/run/xray-vpn/xray-vpn.pid
 Restart=on-failure

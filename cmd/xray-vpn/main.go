@@ -2,6 +2,7 @@
 //
 //	xray-vpn start   → SIGUSR2
 //	xray-vpn stop    → SIGUSR1
+//	xray-vpn refresh → SIGHUP
 //	xray-vpn status  → check PID
 package main
 
@@ -24,6 +25,8 @@ func main() {
 		send(syscall.SIGUSR2)
 	case "stop":
 		send(syscall.SIGUSR1)
+	case "refresh":
+		send(syscall.SIGHUP)
 	case "status":
 		status()
 	default:
@@ -32,7 +35,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "Usage: %s <start|stop|status>\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Usage: %s <start|stop|refresh|status>\n", os.Args[0])
 	os.Exit(1)
 }
 
