@@ -4,12 +4,11 @@ import (
 	"errors"
 	"os"
 	"time"
+
+	"github.com/xtls/xray-core/common/platform"
 )
 
-const (
-	cacheDir = "/var/cache/xray-vpn"
-	cacheTTL = 1 * 12 * time.Hour
-)
+const cacheTTL = 2 * time.Hour
 
 type cacheState int
 
@@ -26,7 +25,8 @@ type cacheResult struct {
 	Err   error
 }
 
-func readCache(path string) cacheResult {
+func readCache(name string) cacheResult {
+	path := platform.GetAssetLocation(name)
 	info, statErr := os.Stat(path)
 	if statErr != nil {
 		if errors.Is(statErr, os.ErrNotExist) {
@@ -47,4 +47,30 @@ func readCache(path string) cacheResult {
 		return cacheResult{State: cacheStale, Data: data}
 	}
 	return cacheResult{State: cacheFresh, Data: data}
+}
+
+func writeCache(name string, data []byte) error {
+	return writeCacheFrom(name, func(f *os.File) error {
+		_, err := f.Write(data)
+		return err
+	})
+}
+
+func writeCacheFrom(name string, write func(*os.File) error) error {
+	dest := platform.GetAssetLocation(name)
+	tmp := dest + ".tmp"
+
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0700)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp)
+
+	err = write(f)
+	f.Close()
+	if err != nil {
+		return err
+	}
+
+	return os.Rename(tmp, dest)
 }

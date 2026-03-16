@@ -6,40 +6,57 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
 type geodataFile struct {
 	url  string
-	path string
+	name string
 }
 
-var baseGeodataUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/"
+const baseGeodataUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/"
 
 var geodataFiles = []geodataFile{
-	{baseGeodataUrl + "geoip.dat", cacheDir + "/geoip.dat"},
-	{baseGeodataUrl + "geosite.dat", cacheDir + "/geosite.dat"},
+	{baseGeodataUrl + "geoip.dat", "geoip.dat"},
+	{baseGeodataUrl + "geosite.dat", "geosite.dat"},
+}
+
+func geodataEnabled() bool {
+	v := strings.ToLower(os.Getenv("GEODATA_ENABLED"))
+	return v == "1" || v == "true" || v == "yes"
+}
+
+func geodataDirectIPs() []string {
+	if !geodataEnabled() {
+		return nil
+	}
+	return []string{"geoip:private", "geoip:ru"}
 }
 
 func loadGeodata() error {
+	if !geodataEnabled() {
+		return nil
+	}
+
 	var staleFiles []geodataFile
 
 	for _, f := range geodataFiles {
-		cr := readCache(f.path)
+		cr := readCache(f.name)
 		switch cr.State {
 		case cacheFresh:
-			log.Printf("using cached %s", f.path)
+			log.Printf("using cached %s", f.name)
 		case cacheStale:
-			log.Printf("using stale %s, will refresh in background", f.path)
+			log.Printf("using stale %s, will refresh in background", f.name)
 			staleFiles = append(staleFiles, f)
 		case cacheMissing:
-			if err := downloadFile(f.url, f.path); err != nil {
+			if err := downloadFile(f.url, f.name); err != nil {
 				return fmt.Errorf("download %s: %w", f.url, err)
 			}
 		case cacheError:
-			return fmt.Errorf("read %s: %w", f.path, cr.Err)
+			return fmt.Errorf("read %s: %w", f.name, cr.Err)
 		default:
-			return fmt.Errorf("unexpected cache state %d for %s", cr.State, f.path)
+			return fmt.Errorf("unexpected cache state %d for %s", cr.State, f.name)
 		}
 	}
 
@@ -52,22 +69,26 @@ func loadGeodata() error {
 
 func refreshStateFiles(files []geodataFile) {
 	for _, f := range files {
-		if err := downloadFile(f.url, f.path); err != nil {
-			log.Printf("background geodata refresh failed for %s: %v", f.path, err)
+		if err := downloadFile(f.url, f.name); err != nil {
+			log.Printf("background geodata refresh failed for %s: %v", f.name, err)
 		}
 	}
 }
 
 func RefreshGeodata() error {
+	if !geodataEnabled() {
+		return nil
+	}
+
 	for _, f := range geodataFiles {
-		if err := downloadFile(f.url, f.path); err != nil {
+		if err := downloadFile(f.url, f.name); err != nil {
 			return fmt.Errorf("download %s: %w", f.url, err)
 		}
 	}
 	return nil
 }
 
-func downloadFile(url, dest string) error {
+func downloadFile(url, name string) error {
 	log.Printf("downloading %s ...", url)
 	client := &http.Client{Timeout: 2 * time.Minute}
 	resp, err := client.Get(url)
@@ -80,24 +101,12 @@ func downloadFile(url, dest string) error {
 		return fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
 
-	tmp := dest + ".tmp"
-	f, err := os.Create(tmp)
-	if err != nil {
-		return err
-	}
-
-	n, err := io.Copy(f, resp.Body)
-	f.Close()
-	if err != nil {
-		os.Remove(tmp)
-		return err
-	}
-
-	if err := os.Rename(tmp, dest); err != nil {
-		os.Remove(tmp)
-		return err
-	}
-
-	log.Printf("wrote %s (%d bytes)", dest, n)
-	return nil
+	return writeCacheFrom(name, func(f *os.File) error {
+		n, err := io.Copy(f, resp.Body)
+		if err != nil {
+			return err
+		}
+		log.Printf("wrote %s (%d bytes)", f.Name(), n)
+		return nil
+	})
 }
