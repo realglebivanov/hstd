@@ -1,4 +1,9 @@
 #!/bin/sh
 set -e
-systemctl stop xray-vpn.service 2>/dev/null || true
-systemctl disable xray-vpn.service 2>/dev/null || true
+
+if [ "$1" = "remove" ]; then
+    systemctl stop xray-vpn.service 2>/dev/null || true
+    systemctl disable xray-vpn.service 2>/dev/null || true
+    systemctl disable --now xray-vpn-refresh.timer 2>/dev/null || true
+fi
+
