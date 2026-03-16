@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/realglebivanov/xray-vpn/internal/config/store"
 	"github.com/realglebivanov/xray-vpn/internal/routing"
 	"github.com/xtls/xray-core/common/net"
 	core "github.com/xtls/xray-core/core"
@@ -53,7 +52,7 @@ func BuildCoreConfig() (*core.Config, error) {
 }
 
 func buildProxyOutbound() (*conf.OutboundDetourConfig, error) {
-	out, err := store.GetActiveOutboundConfig()
+	out, err := getActiveOutboundConfig()
 	if err != nil {
 		return nil, err
 	}

@@ -6,11 +6,20 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-
-	"github.com/xtls/xray-core/infra/conf"
 )
 
+type State struct {
+	Links    []Link `json:"links"`
+	ActiveID string `json:"active_id"`
+}
+
 func (s *State) addLink(link string) error {
+	link = strings.TrimSpace(link)
+
+	if err := validateLink(link); err != nil {
+		return fmt.Errorf("Invalid link: %v", err)
+	}
+
 	for _, existing := range s.Links {
 		if existing.Link == link {
 			return fmt.Errorf("link already exists")
@@ -65,31 +74,6 @@ func (s *State) chooseLink(id string) error {
 		}
 	}
 	return fmt.Errorf("link id %q not found", id)
-}
-
-func (s *State) activeOutboundConfig() (*conf.OutboundDetourConfig, error) {
-	if s.ActiveID == "" {
-		return nil, fmt.Errorf("no active link selected")
-	}
-
-	var raw string
-	for _, item := range s.Links {
-		if item.ID == s.ActiveID {
-			raw = item.Link
-			break
-		}
-	}
-
-	if raw == "" {
-		return nil, fmt.Errorf("active link %q not found in state", s.ActiveID)
-	}
-
-	out, err := parseLink(raw)
-	if err != nil {
-		return nil, fmt.Errorf("parse link: %w", err)
-	}
-
-	return out, nil
 }
 
 func hashID(link string) string {

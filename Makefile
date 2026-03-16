@@ -11,8 +11,16 @@ LDFLAGS := -s -w -buildid=v0.0.1
 all: deb
 
 build:
-	CGO_ENABLED=0 go build -trimpath -ldflags="$(LDFLAGS)" -o target/xray-vpnd ./cmd/xray-vpnd
-	CGO_ENABLED=0 go build -trimpath -ldflags="$(LDFLAGS)" -o target/xray-vpn  ./cmd/xray-vpn
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -trimpath -ldflags="$(LDFLAGS)" -o target/xray-vpnd ./cmd/xray-vpnd
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -trimpath -ldflags="$(LDFLAGS)" -o target/xray-vpn  ./cmd/xray-vpn
+
+openwrt:
+	CGO_ENABLED=0 GOOS=linux GOARCH=mipsle go build -trimpath -ldflags="$(LDFLAGS)" -o target/xray-vpnd-mipsle ./cmd/xray-vpnd
+	CGO_ENABLED=0 GOOS=linux GOARCH=mipsle go build -trimpath -ldflags="$(LDFLAGS)" -o target/xray-vpn-mipsle  ./cmd/xray-vpn
+	upx --best --lzma target/xray-vpnd-mipsle
+	upx --best --lzma target/xray-vpn-mipsle
+	@echo "Compressed binaries:"
+	@ls -lh target/xray-vpnd-mipsle target/xray-vpn-mipsle
 
 deb: build
 	rm -rf $(STAGE)

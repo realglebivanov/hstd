@@ -4,35 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"strings"
 	"sync"
-
-	"github.com/xtls/xray-core/infra/conf"
 )
-
-type Link struct {
-	ID   string `json:"id"`
-	Link string `json:"link"`
-}
-
-func (l Link) Summary() string {
-	u, err := url.Parse(l.Link)
-	if err != nil {
-		return l.Link
-	}
-	uuid := u.User.Username()
-	if len(uuid) > 13 {
-		uuid = uuid[:13]
-	}
-	return uuid + "@" + u.Host
-}
-
-type State struct {
-	Links    []Link `json:"links"`
-	ActiveID string `json:"active_id"`
-}
 
 var mu sync.Mutex
 
@@ -47,11 +22,6 @@ func GetState() (*State, error) {
 func AddLink(link string) error {
 	mu.Lock()
 	defer mu.Unlock()
-
-	link = strings.TrimSpace(link)
-	if _, err := parseLink(link); err != nil {
-		return fmt.Errorf("Invalid link: %v", err)
-	}
 
 	st, err := loadState()
 	if err != nil {
@@ -98,18 +68,6 @@ func ChooseLink(id string) error {
 	}
 
 	return saveState(st)
-}
-
-func GetActiveOutboundConfig() (*conf.OutboundDetourConfig, error) {
-	mu.Lock()
-	defer mu.Unlock()
-
-	st, err := loadState()
-	if err != nil {
-		return nil, err
-	}
-
-	return st.activeOutboundConfig()
 }
 
 func loadState() (*State, error) {
