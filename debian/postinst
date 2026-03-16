@@ -10,8 +10,7 @@ if ! getent passwd xray-vpn > /dev/null 2>&1; then
             --ingroup xray-vpn xray-vpn
 fi
 
-echo "xray-vpn: placeholder config at /etc/xray-vpn/config.json"
-echo "xray-vpn: edit with your proxy outbound, then: systemctl start xray-vpn"
+echo "xray-vpn: set proxy link with: xray-vpn link add <vless://...>"
 echo "xray-vpn: to allow a user to control the service, run: usermod -aG xray-vpn <username>"
 
 mkdir -p /run/xray-vpn /var/cache/xray-vpn
@@ -22,8 +21,7 @@ chown -R xray-vpn:xray-vpn /etc/xray-vpn /run/xray-vpn /var/cache/xray-vpn
 
 chmod 4550 /usr/bin/xray-vpn
 chmod 500 /usr/bin/xray-vpnd
-chmod 500 /etc/xray-vpn
-chmod 500 /etc/xray-vpn/config.json
+chmod 770 /etc/xray-vpn
 chmod 700 /run/xray-vpn
 chmod 700 /var/cache/xray-vpn
 

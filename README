@@ -1,2 +1,6 @@
-No guarantees provided
-Works for me
+docker compose up
+docker compose exec xray-vpn xray-vpn link add <url>
+docker compose exec xray-vpn xray-vpn link remove <url>
+docker compose exec xray-vpn xray-vpn link choose <id>
+docker compose exec xray-vpn xray-vpn link list <id>
+docker compose exec xray-vpn xray-vpn start/stop

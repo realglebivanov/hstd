@@ -3,17 +3,12 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
+	"github.com/realglebivanov/xray-vpn/internal/config/store"
 	"github.com/realglebivanov/xray-vpn/internal/routing"
 	"github.com/xtls/xray-core/common/net"
 	core "github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/infra/conf"
-)
-
-const (
-	outboundConfigPath = "/etc/xray-vpn/config.json"
-	ruCIDRsURL         = "https://raw.githubusercontent.com/ipverse/rir-ip/master/country/ru/ipv4-aggregated.txt"
 )
 
 func BuildCoreConfig() (*core.Config, error) {
@@ -46,21 +41,9 @@ func BuildCoreConfig() (*core.Config, error) {
 		RouterConfig: buildRouterConfig(proxyOut.Tag, ruCIDRs),
 		DNSConfig: &conf.DNSConfig{
 			Servers: []*conf.NameServerConfig{
-				&conf.NameServerConfig{
-					Address: &conf.Address{
-						Address: net.ParseAddress("8.8.8.8"),
-					},
-				},
-				&conf.NameServerConfig{
-					Address: &conf.Address{
-						Address: net.ParseAddress("8.8.4.4"),
-					},
-				},
-				&conf.NameServerConfig{
-					Address: &conf.Address{
-						Address: net.ParseAddress("1.1.1.1"),
-					},
-				},
+				{Address: &conf.Address{Address: net.ParseAddress("8.8.8.8")}},
+				{Address: &conf.Address{Address: net.ParseAddress("8.8.4.4")}},
+				{Address: &conf.Address{Address: net.ParseAddress("1.1.1.1")}},
 			},
 			QueryStrategy: "UseIP",
 		},
@@ -70,29 +53,11 @@ func BuildCoreConfig() (*core.Config, error) {
 }
 
 func buildProxyOutbound() (*conf.OutboundDetourConfig, error) {
-	raw, err := os.ReadFile(outboundConfigPath)
+	out, err := store.GetActiveOutboundConfig()
 	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", outboundConfigPath, err)
+		return nil, err
 	}
 
-	var out conf.OutboundDetourConfig
-	if err := json.Unmarshal(raw, &out); err != nil {
-		return nil, fmt.Errorf("parse %s as outbound: %w", outboundConfigPath, err)
-	}
-
-	if out.Protocol == "" {
-		return nil, fmt.Errorf("%s: missing \"protocol\" field", outboundConfigPath)
-	}
-
-	injectMark(&out)
-	if out.Tag == "" {
-		out.Tag = "proxy"
-	}
-
-	return &out, nil
-}
-
-func injectMark(out *conf.OutboundDetourConfig) {
 	if out.StreamSetting == nil {
 		out.StreamSetting = &conf.StreamConfig{}
 	}
@@ -100,6 +65,12 @@ func injectMark(out *conf.OutboundDetourConfig) {
 		out.StreamSetting.SocketSettings = &conf.SocketConfig{}
 	}
 	out.StreamSetting.SocketSettings.Mark = int32(routing.Fwmark)
+
+	if out.Tag == "" {
+		out.Tag = "proxy"
+	}
+
+	return out, nil
 }
 
 func buildDirectOutbound(mark int) conf.OutboundDetourConfig {

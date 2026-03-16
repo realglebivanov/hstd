@@ -7,7 +7,7 @@ services:
     devices:
       - /dev/net/tun:/dev/net/tun
     volumes:
-      - ./link:/etc/xray-vpn/link:ro
+      - ./state.json:/etc/xray-vpn/state.json
       - cache:/var/cache/xray-vpn
     restart: unless-stopped
 

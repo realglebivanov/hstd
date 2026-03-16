@@ -4,7 +4,7 @@ ARCH     := amd64
 DEB_NAME := $(PACKAGE)_$(VERSION)_$(ARCH).deb
 STAGE    := target/deb/$(PACKAGE)_$(VERSION)_$(ARCH)
 
-LDFLAGS := -s -w -buildid=
+LDFLAGS := -s -w -buildid=v0.0.1
 
 .PHONY: all build deb clean
 
@@ -21,13 +21,13 @@ deb: build
 	install -Dm644 debian/xray-vpn.service         $(STAGE)/lib/systemd/system/xray-vpn.service
 	install -Dm644 debian/xray-vpn-refresh.service $(STAGE)/lib/systemd/system/xray-vpn-refresh.service
 	install -Dm644 debian/xray-vpn-refresh.timer   $(STAGE)/lib/systemd/system/xray-vpn-refresh.timer
-	install -Dm644 debian/config.json 	   $(STAGE)/etc/xray-vpn/config.json
+	install -Dm644 /dev/null		 	   $(STAGE)/etc/xray-vpn/state.json
 	install -d     						   $(STAGE)/DEBIAN
 	install -m755  debian/postinst         $(STAGE)/DEBIAN/postinst
 	install -m755  debian/prerm            $(STAGE)/DEBIAN/prerm
 	install -m755  debian/postrm           $(STAGE)/DEBIAN/postrm
 	cp             debian/control          $(STAGE)/DEBIAN/control
-	echo "/etc/xray-vpn/config.json" > $(STAGE)/DEBIAN/conffiles
+	echo "/etc/xray-vpn/state.json" > $(STAGE)/DEBIAN/conffiles
 	dpkg-deb --build --root-owner-group $(STAGE)
 	@echo "Package built: target/deb/$(DEB_NAME)"
 
