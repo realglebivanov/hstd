@@ -1,0 +1,55 @@
+name: Build packages
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install UPX
+        run: sudo apt-get update && sudo apt-get install -y upx-ucl
+
+      - name: Build .deb (amd64)
+        run: make deb DEB_ARCH=amd64
+
+      - name: Build .ipk (mipsle)
+        run: make openwrt
+
+      - name: Rename amd64 binaries
+        run: |
+          mv target/xray-vpnd target/xray-vpnd-amd64
+          mv target/xray-vpn  target/xray-vpn-amd64
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: |
+            target/deb/*.deb
+            target/ipk/*.ipk
+            target/xray-vpn-*
+            target/xray-vpnd-*
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            target/deb/*.deb
+            target/ipk/*.ipk
+            target/xray-vpn-amd64
+            target/xray-vpnd-amd64
+            target/xray-vpn-mipsle
+            target/xray-vpnd-mipsle

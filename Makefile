@@ -1,8 +1,9 @@
 PACKAGE  := xray-vpn
 VERSION  := 0.1.0
 
-DEB_NAME := $(PACKAGE)_$(VERSION)_amd64.deb
-STAGE    := target/deb/$(PACKAGE)_$(VERSION)_amd64
+DEB_ARCH := amd64
+DEB_NAME := $(PACKAGE)_$(VERSION)_$(DEB_ARCH).deb
+STAGE    := target/deb/$(PACKAGE)_$(VERSION)_$(DEB_ARCH)
 
 IPK_NAME  := $(PACKAGE)_$(VERSION)-1_all.ipk
 IPK_STAGE := target/ipk/$(PACKAGE)
