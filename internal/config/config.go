@@ -106,7 +106,9 @@ func buildTunInbound() conf.InboundDetourConfig {
 }
 
 func buildRouterConfig(proxyTag string, ruCIDRs []string) *conf.RouterConfig {
-	directIPs := []string{"geoip:private", "geoip:ru"}
+	var directIPs []string
+
+	directIPs = append(directIPs, geodataDirectIPs()...)
 	directIPs = append(directIPs, ruCIDRs...)
 
 	ipRule, _ := json.Marshal(map[string]any{

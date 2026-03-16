@@ -3,24 +3,23 @@ package config
 import (
 	"fmt"
 	"log"
-	"os"
 	"strings"
 
 	"github.com/realglebivanov/xray-vpn/internal/config/ru_cidrs"
 )
 
-const cidrCachePath = cacheDir + "/ru_cidrs.txt"
+const ruCIDRsName = "ru_cidrs.txt"
 
 func loadRuCIDRs() ([]string, error) {
-	cr := readCache(cidrCachePath)
+	cr := readCache(ruCIDRsName)
 	switch cr.State {
 	case cacheFresh:
 		cidrs := unmarshalCIDRs(cr.Data)
-		log.Printf("loaded %d cached RU CIDRs from %s", len(cidrs), cidrCachePath)
+		log.Printf("loaded %d cached RU CIDRs", len(cidrs))
 		return cidrs, nil
 	case cacheStale:
 		cidrs := unmarshalCIDRs(cr.Data)
-		log.Printf("loaded %d stale RU CIDRs from %s, will refresh in background", len(cidrs), cidrCachePath)
+		log.Printf("loaded %d stale RU CIDRs, will refresh in background", len(cidrs))
 		go RefreshRuCIDRs()
 		return cidrs, nil
 	case cacheMissing:
@@ -37,10 +36,10 @@ func RefreshRuCIDRs() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(cidrCachePath, []byte(strings.Join(cidrs, "\n")+"\n"), 0700); err != nil {
+	if err := writeCache(ruCIDRsName, []byte(strings.Join(cidrs, "\n")+"\n")); err != nil {
 		log.Printf("warning: failed to write CIDR cache: %v", err)
 	} else {
-		log.Printf("wrote %d CIDRs to %s", len(cidrs), cidrCachePath)
+		log.Printf("wrote %d CIDRs to cache", len(cidrs))
 	}
 	return cidrs, nil
 }
