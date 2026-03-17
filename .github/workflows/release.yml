@@ -25,7 +25,7 @@ jobs:
       - name: Build .deb (amd64)
         run: make deb DEB_ARCH=amd64
 
-      - name: Build .ipk (mipsle)
+      - name: Build .apk (mipsle)
         run: make openwrt
 
       - name: Rename amd64 binaries
@@ -39,7 +39,7 @@ jobs:
           name: packages
           path: |
             target/deb/*.deb
-            target/ipk/*.ipk
+            target/apk/*.apk
             target/xray-vpn-*
             target/xray-vpnd-*
 
@@ -48,7 +48,7 @@ jobs:
         with:
           files: |
             target/deb/*.deb
-            target/ipk/*.ipk
+            target/apk/*.apk
             target/xray-vpn-amd64
             target/xray-vpnd-amd64
             target/xray-vpn-mipsle

@@ -5,12 +5,12 @@ DEB_ARCH := amd64
 DEB_NAME := $(PACKAGE)_$(VERSION)_$(DEB_ARCH).deb
 STAGE    := target/deb/$(PACKAGE)_$(VERSION)_$(DEB_ARCH)
 
-IPK_NAME  := $(PACKAGE)_$(VERSION)-1_all.ipk
-IPK_STAGE := target/ipk/$(PACKAGE)
+APK_NAME  := $(PACKAGE)-$(VERSION)-r1.apk
+APK_STAGE := target/apk/$(PACKAGE)
 
 LDFLAGS := -s -w -buildid=v0.0.1
 
-.PHONY: all build deb openwrt openwrt-pkg clean
+.PHONY: all build deb openwrt clean
 
 all: deb
 
@@ -24,25 +24,21 @@ build_mipsle:
 
 
 openwrt: build_mipsle
-	rm -rf $(IPK_STAGE)
+	rm -rf $(APK_STAGE)
 	# data tree
-	install -Dm755 openwrt/files/xray-vpn.init       $(IPK_STAGE)/data/etc/init.d/xray-vpn
-	install -Dm755 openwrt/files/xray-vpn-download   $(IPK_STAGE)/data/usr/bin/xray-vpn-download
-	install -Dm644 /dev/null                          $(IPK_STAGE)/data/etc/xray-vpn/state.json
-	# control tree
-	install -d $(IPK_STAGE)/control
-	printf 'Package: $(PACKAGE)\nVersion: $(VERSION)-1\nDepends: ca-certificates, wget\nSection: net\nArchitecture: all\nMaintainer: Gleb Ivanov <realglebivanov@gmail.com>\nDescription: Xray TUN VPN with automatic route management\n' \
-		> $(IPK_STAGE)/control/control
-	printf '/etc/xray-vpn/state.json\n' > $(IPK_STAGE)/control/conffiles
-	printf '#!/bin/sh\n[ -n "$${IPKG_INSTROOT}" ] || /etc/init.d/xray-vpn enable\n' > $(IPK_STAGE)/control/postinst
-	printf '#!/bin/sh\n/etc/init.d/xray-vpn stop 2>/dev/null\n/etc/init.d/xray-vpn disable\n' > $(IPK_STAGE)/control/prerm
-	chmod 755 $(IPK_STAGE)/control/postinst $(IPK_STAGE)/control/prerm
-	# assemble ipk
-	echo "2.0" > $(IPK_STAGE)/debian-binary
-	cd $(IPK_STAGE)/data    && tar czf ../data.tar.gz .
-	cd $(IPK_STAGE)/control && tar czf ../control.tar.gz .
-	cd $(IPK_STAGE) && ar rc ../$(IPK_NAME) debian-binary control.tar.gz data.tar.gz
-	@echo "Package built: target/ipk/$(IPK_NAME)"
+	install -Dm755 openwrt/files/xray-vpn.init       $(APK_STAGE)/root/etc/init.d/xray-vpn
+	install -Dm755 openwrt/files/xray-vpn-download   $(APK_STAGE)/root/usr/bin/xray-vpn-download
+	install -Dm644 /dev/null                          $(APK_STAGE)/root/etc/xray-vpn/state.json
+	# control metadata
+	printf 'pkgname = $(PACKAGE)\npkgver = $(VERSION)-r1\npkgdesc = Xray TUN VPN with automatic route management\narch = all\nmaintainer = Gleb Ivanov <realglebivanov@gmail.com>\ndepend = ca-certificates\ndepend = wget\n' \
+		> $(APK_STAGE)/.PKGINFO
+	# lifecycle scripts
+	printf '#!/bin/sh\n/etc/init.d/xray-vpn enable\n' > $(APK_STAGE)/.post-install
+	printf '#!/bin/sh\n/etc/init.d/xray-vpn stop 2>/dev/null\n/etc/init.d/xray-vpn disable\n' > $(APK_STAGE)/.pre-deinstall
+	chmod 755 $(APK_STAGE)/.post-install $(APK_STAGE)/.pre-deinstall
+	# assemble apk
+	cd $(APK_STAGE) && tar czf ../$(APK_NAME) .PKGINFO .post-install .pre-deinstall -C root .
+	@echo "Package built: target/apk/$(APK_NAME)"
 
 build:
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -trimpath -ldflags="$(LDFLAGS)" -o target/xray-vpnd ./cmd/xray-vpnd
