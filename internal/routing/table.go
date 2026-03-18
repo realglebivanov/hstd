@@ -17,7 +17,7 @@ const (
 )
 
 func populateRouteTable(tun *Tunnel) error {
-	if err := netlink.RouteDel(&tun.Gw.Route); err != nil {
+	if err := netlink.RouteDel(&tun.Gw.Route); err != nil && !errors.Is(err, syscall.ESRCH) {
 		return fmt.Errorf("default route delete %s: %w", tun.Gw.Route, err)
 	}
 	log.Printf("default direct route is down %s", tun.Gw.IP.String())
@@ -25,7 +25,7 @@ func populateRouteTable(tun *Tunnel) error {
 	if err := netlink.RuleAdd(buildFwmarkRule()); err != nil {
 		return fmt.Errorf("add fwmark rule: %w", err)
 	}
-	if err := netlink.RouteAdd(buildDirectRoute(tun.Gw)); err != nil {
+	if err := netlink.RouteReplace(buildDirectRoute(tun.Gw)); err != nil {
 		return fmt.Errorf("add route: %w", err)
 	}
 	log.Printf("proxy direct route is up (fwmark %#x → table %d)", Fwmark, directRouteTable)

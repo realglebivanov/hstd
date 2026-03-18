@@ -7,9 +7,10 @@ import (
 	"os"
 
 	"github.com/vishvananda/netlink"
+	"github.com/xtls/xray-core/common/platform"
 )
 
-const gatewayFile = "/var/cache/xray-vpn/default-gateway.json"
+var gatewayFile = platform.GetAssetLocation("default-gateway.json")
 
 type DefaultGateway struct {
 	Route netlink.Route

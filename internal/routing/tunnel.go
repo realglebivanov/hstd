@@ -23,6 +23,9 @@ const (
 )
 
 func TearDownTunnel(tun *Tunnel) error {
+	if err := removeForwardToTun(); err != nil {
+		return fmt.Errorf("firewall: %w", err)
+	}
 	if err := cleanRouteTable(tun); err != nil {
 		return fmt.Errorf("clean table: %w", err)
 	}
@@ -51,6 +54,9 @@ func SetUpTunnel() (*Tunnel, error) {
 
 	if err := populateRouteTable(&tunnel); err != nil {
 		return nil, fmt.Errorf("populate table: %w", err)
+	}
+	if err := allowForwardToTun(); err != nil {
+		return nil, fmt.Errorf("firewall: %w", err)
 	}
 	return &tunnel, nil
 }

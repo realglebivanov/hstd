@@ -110,6 +110,7 @@ func buildRouterConfig(proxyTag string, ruCIDRs []string) *conf.RouterConfig {
 
 	directIPs = append(directIPs, geodataDirectIPs()...)
 	directIPs = append(directIPs, ruCIDRs...)
+	directIPs = append(directIPs, []string{"1.1.1.1", "8.8.8.8", "8.8.4.4"}...)
 
 	ipRule, _ := json.Marshal(map[string]any{
 		"type":        "field",
