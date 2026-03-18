@@ -1,10 +1,14 @@
 package ru_cidrs
 
 import (
+	"bufio"
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
 	mathbits "math/bits"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -53,8 +57,8 @@ func FetchRuCIDRs() ([]string, error) {
 	return cidrs, nil
 }
 
-func fetchAllCidrs() <-chan cidrResult {
-	ch := make(chan cidrResult, len(cidrUrls))
+func fetchAllCidrs() <-chan *cidrResult {
+	ch := make(chan *cidrResult, len(cidrUrls))
 	client := &http.Client{Timeout: 30 * time.Second}
 	for _, url := range cidrUrls {
 		go fetchCidrs(client, url, ch)
@@ -62,44 +66,71 @@ func fetchAllCidrs() <-chan cidrResult {
 	return ch
 }
 
-func fetchCidrs(client *http.Client, url string, ch chan<- cidrResult) {
+func fetchCidrs(client *http.Client, url string, ch chan<- *cidrResult) {
 	resp, err := client.Get(url)
 	if err != nil {
-		ch <- cidrResult{err: fmt.Errorf("fetch %s: %w", url, err), url: url}
+		ch <- &cidrResult{err: fmt.Errorf("fetch %s: %w", url, err), url: url}
 		return
 	}
-	if resp.StatusCode != http.StatusOK {
-		ch <- cidrResult{err: fmt.Errorf("fetch %s: %d", url, resp.StatusCode), url: url}
-		return
-	}
+
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		ch <- &cidrResult{err: fmt.Errorf("fetch %s: %d", url, resp.StatusCode), url: url}
+		return
+	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		ch <- cidrResult{err: fmt.Errorf("read %s: %w", url, err), url: url}
+		ch <- &cidrResult{err: fmt.Errorf("read %s: %w", url, err), url: url}
 		return
 	}
 
-	ch <- cidrResult{cidrs: parseCIDRs(body), url: url}
+	ch <- &cidrResult{cidrs: parseCIDRs(body), url: url}
 }
 
 func parseCIDRs(body []byte) []string {
 	var cidrs []string
-	for line := range strings.SplitSeq(string(body), "\n") {
-		fields := strings.Split(line, "|")
+	scanner := bufio.NewScanner(bytes.NewReader(body))
+
+	for scanner.Scan() {
+		fields := strings.Split(scanner.Text(), "|")
 		if len(fields) < 5 {
 			continue
 		}
 		if fields[1] != "RU" || fields[2] != "ipv4" {
 			continue
 		}
-		ip := fields[3]
-		count, err := strconv.Atoi(fields[4])
+		ip := net.ParseIP(fields[3]).To4()
+		if ip == nil {
+			continue
+		}
+		count, err := strconv.ParseUint(fields[4], 10, 32)
 		if err != nil || count == 0 {
 			continue
 		}
-		bits := 32 - mathbits.Len(uint(count-1))
-		cidrs = append(cidrs, fmt.Sprintf("%s/%d", ip, bits))
+		cidrs = append(cidrs, rangeToCIDRs(ip, uint(count))...)
+	}
+	return cidrs
+}
+
+func rangeToCIDRs(start net.IP, count uint) []string {
+	blockStart := binary.BigEndian.Uint32(start)
+
+	var cidrs []string
+	for count > 0 {
+		trailingZeros := mathbits.TrailingZeros32(blockStart)
+
+		maxBits := min(trailingZeros, mathbits.Len(count)-1)
+		blockSize := 1 << maxBits
+		prefix := 32 - maxBits
+
+		ip := make(net.IP, 4)
+		binary.BigEndian.PutUint32(ip, blockStart)
+		cidrs = append(cidrs, fmt.Sprintf("%s/%d", ip, prefix))
+
+		blockStart += uint32(blockSize)
+		count -= uint(blockSize)
 	}
 	return cidrs
 }

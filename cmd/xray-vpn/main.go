@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -39,17 +40,17 @@ func send(sig syscall.Signal) error {
 	if err = p.Signal(sig); err != nil {
 		return fmt.Errorf("signal failed: %w", err)
 	}
-	fmt.Printf("sent to pid %d\n", p.Pid)
+	log.Printf("sent to pid %d\n", p.Pid)
 	return nil
 }
 
 func status() {
 	p, err := findDaemon()
 	if err != nil {
-		fmt.Println("daemon is not running.")
+		log.Println("daemon is not running.")
 		return
 	}
-	fmt.Printf("daemon running (pid %d)\n", p.Pid)
+	log.Printf("daemon running (pid %d)\n", p.Pid)
 }
 
 func readPID() (int, error) {

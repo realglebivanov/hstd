@@ -41,7 +41,7 @@ func lookupDefaultGateway() (*state.DefaultGateway, error) {
 			continue
 		}
 
-		return &state.DefaultGateway{Route: r, IP: r.Gw, Link: link}, nil
+		return &state.DefaultGateway{Route: &r, IP: &r.Gw, Link: link}, nil
 	}
 	return nil, fmt.Errorf("no default gateway found")
 }

@@ -9,7 +9,6 @@ AmbientCapabilities=CAP_NET_ADMIN
 RuntimeDirectory=xray-vpn
 CacheDirectory=xray-vpn
 Environment="XRAY_LOCATION_ASSET=/var/cache/xray-vpn"
-Environment="GEODATA_ENABLED=true"
 ExecStart=/usr/bin/xray-vpnd
 PIDFile=/run/xray-vpn/xray-vpn.pid
 Restart=on-failure

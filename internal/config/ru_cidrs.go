@@ -1,6 +1,8 @@
 package config
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"log"
 	"strings"
@@ -46,7 +48,12 @@ func RefreshRuCIDRs() ([]string, error) {
 
 func unmarshalCIDRs(data []byte) []string {
 	var cidrs []string
-	for line := range strings.SplitSeq(strings.TrimSpace(string(data)), "\n") {
+
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
 		if line != "" {
 			cidrs = append(cidrs, line)
 		}

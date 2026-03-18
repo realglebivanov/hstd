@@ -13,14 +13,14 @@ import (
 var gatewayFile = platform.GetAssetLocation("default-gateway.json")
 
 type DefaultGateway struct {
-	Route netlink.Route
-	IP    net.IP
+	Route *netlink.Route
+	IP    *net.IP
 	Link  netlink.Link
 }
 
 type savedGateway struct {
-	Route    netlink.Route `json:"route"`
-	LinkName string        `json:"link_name"`
+	Route    *netlink.Route `json:"route"`
+	LinkName string         `json:"link_name"`
 }
 
 func Save(gw *DefaultGateway) error {
@@ -58,7 +58,7 @@ func Load() (*DefaultGateway, error) {
 
 	return &DefaultGateway{
 		Route: sg.Route,
-		IP:    sg.Route.Gw,
+		IP:    &sg.Route.Gw,
 		Link:  link,
 	}, nil
 }

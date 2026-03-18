@@ -10,8 +10,8 @@ LDFLAGS := -s -w -buildid=
 .PHONY: build deb clean
 
 build:
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -trimpath -ldflags="$(LDFLAGS)" -o target/xray-vpnd ./cmd/xray-vpnd
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -trimpath -ldflags="$(LDFLAGS)" -o target/xray-vpn  ./cmd/xray-vpn
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(DEB_ARCH) go build -trimpath -ldflags="$(LDFLAGS)" -o target/xray-vpnd ./cmd/xray-vpnd
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(DEB_ARCH) go build -trimpath -ldflags="$(LDFLAGS)" -o target/xray-vpn  ./cmd/xray-vpn
 
 deb: build
 	rm -rf $(STAGE)

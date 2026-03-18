@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 )
 
@@ -39,15 +38,13 @@ func RemoveLink(id string) (activeChanged bool, err error) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	id = strings.TrimSpace(id)
-
 	st, err := loadState()
 	if err != nil {
 		return false, err
 	}
 
-	wasActive := st.ActiveID == id
-	if err := st.removeLink(id); err != nil {
+	wasActive, err := st.removeLink(id)
+	if err != nil {
 		return false, err
 	}
 
@@ -104,7 +101,6 @@ func saveState(st *State) error {
 	if err := os.Rename(tmpPath, statePath); err != nil {
 		return fmt.Errorf("rename temp state file: %w", err)
 	}
-	_ = os.Remove(tmpPath)
 
 	return nil
 }
