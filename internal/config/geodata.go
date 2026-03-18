@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -22,23 +21,7 @@ var geodataFiles = []geodataFile{
 	{baseGeodataUrl + "geosite.dat", "geosite.dat"},
 }
 
-func geodataEnabled() bool {
-	v := strings.ToLower(os.Getenv("GEODATA_ENABLED"))
-	return v == "1" || v == "true" || v == "yes"
-}
-
-func geodataDirectIPs() []string {
-	if !geodataEnabled() {
-		return nil
-	}
-	return []string{"geoip:private", "geoip:ru"}
-}
-
 func loadGeodata() error {
-	if !geodataEnabled() {
-		return nil
-	}
-
 	var staleFiles []geodataFile
 
 	for _, f := range geodataFiles {
@@ -76,10 +59,6 @@ func refreshStateFiles(files []geodataFile) {
 }
 
 func RefreshGeodata() error {
-	if !geodataEnabled() {
-		return nil
-	}
-
 	for _, f := range geodataFiles {
 		if err := downloadFile(f.url, f.name); err != nil {
 			return fmt.Errorf("download %s: %w", f.url, err)

@@ -89,13 +89,14 @@ func (s *supervisor) startXRay() error {
 
 func (s *supervisor) setUpTunnel() error {
 	tun, err := routing.SetUpTunnel()
+	s.tun = tun
+
 	if err != nil {
 		if sErr := s.stopLocked(); sErr != nil {
-			log.Println("stopLocked err: %w", err)
+			log.Printf("stopLocked err: %v", err)
 		}
 		return fmt.Errorf("tunnel set up: %w", err)
 	}
-	s.tun = tun
 
 	return nil
 }

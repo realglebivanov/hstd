@@ -17,7 +17,7 @@ func (s *State) addLink(link string) error {
 	link = strings.TrimSpace(link)
 
 	if err := validateLink(link); err != nil {
-		return fmt.Errorf("Invalid link: %v", err)
+		return fmt.Errorf("invalid link: %v", err)
 	}
 
 	for _, existing := range s.Links {
@@ -33,8 +33,9 @@ func (s *State) addLink(link string) error {
 	return nil
 }
 
-func (s *State) removeLink(id string) error {
+func (s *State) removeLink(id string) (bool, error) {
 	id = strings.TrimSpace(id)
+	wasActive := id == s.ActiveID
 
 	idx := -1
 	for i, item := range s.Links {
@@ -45,7 +46,7 @@ func (s *State) removeLink(id string) error {
 	}
 
 	if idx == -1 {
-		return fmt.Errorf("link id %q not found", id)
+		return wasActive, fmt.Errorf("link id %q not found", id)
 	}
 
 	s.Links = append(s.Links[:idx], s.Links[idx+1:]...)
@@ -57,7 +58,7 @@ func (s *State) removeLink(id string) error {
 			s.ActiveID = ""
 		}
 	}
-	return nil
+	return wasActive, nil
 }
 
 func (s *State) chooseLink(id string) error {

@@ -17,7 +17,7 @@ const (
 )
 
 func populateRouteTable(tun *Tunnel) error {
-	if err := netlink.RouteDel(&tun.Gw.Route); err != nil && !errors.Is(err, syscall.ESRCH) {
+	if err := netlink.RouteDel(tun.Gw.Route); err != nil && !errors.Is(err, syscall.ESRCH) {
 		return fmt.Errorf("default route delete %s: %w", tun.Gw.Route, err)
 	}
 	log.Printf("default direct route is down %s", tun.Gw.IP.String())
@@ -43,7 +43,7 @@ func cleanRouteTable(tun *Tunnel) error {
 	if err := netlink.RouteDel(buildDefaultRoute(tun)); err != nil && !errors.Is(err, syscall.ESRCH) {
 		return fmt.Errorf("default route delete %s: %w", tun.Gw.Route, err)
 	}
-	if err := netlink.RouteReplace(&tun.Gw.Route); err != nil {
+	if err := netlink.RouteReplace(tun.Gw.Route); err != nil {
 		return fmt.Errorf("default route replace %s: %w", tun.Gw.Route, err)
 	}
 	log.Printf("default route is restored %s", tun.Gw.IP.String())
@@ -73,7 +73,7 @@ func buildDefaultRoute(tun *Tunnel) *netlink.Route {
 func buildDirectRoute(gw *state.DefaultGateway) *netlink.Route {
 	return &netlink.Route{
 		Dst:       nil,
-		Gw:        gw.IP,
+		Gw:        *gw.IP,
 		LinkIndex: gw.Link.Attrs().Index,
 		Table:     directRouteTable,
 		Priority:  0,

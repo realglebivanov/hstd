@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/realglebivanov/xray-vpn/internal/config/store"
+	"github.com/realglebivanov/xray-vpn/internal/routing"
 	"github.com/xtls/xray-core/infra/conf"
 )
 
@@ -66,7 +67,7 @@ func parseLink(rawLink string) (*conf.OutboundDetourConfig, error) {
 
 	return &conf.OutboundDetourConfig{
 		Protocol:      "vless",
-		Tag:           u.Fragment,
+		Tag:           "proxy",
 		Settings:      &raw,
 		StreamSetting: stream,
 	}, nil
@@ -83,8 +84,9 @@ func buildStreamSettings(q url.Values) *conf.StreamConfig {
 	}
 
 	sc := &conf.StreamConfig{
-		Network:  (*conf.TransportProtocol)(&network),
-		Security: security,
+		Network:        (*conf.TransportProtocol)(&network),
+		Security:       security,
+		SocketSettings: &conf.SocketConfig{Mark: int32(routing.Fwmark)},
 	}
 
 	switch network {

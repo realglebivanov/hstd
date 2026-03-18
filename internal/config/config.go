@@ -20,24 +20,65 @@ func BuildCoreConfig() (*core.Config, error) {
 		return nil, fmt.Errorf("load ru CIDRS: %w", err)
 	}
 
-	proxyOut, err := buildProxyOutbound()
+	outboundConfig, err := getActiveOutboundConfig()
 	if err != nil {
-		return nil, fmt.Errorf("build proxy outbound: %w", err)
+		return nil, fmt.Errorf("active outbound config: %w", err)
 	}
 
-	xrayCfg := &conf.Config{
+	tunJson, err := json.Marshal(map[string]any{"name": routing.TunDev, "mtu": routing.TunMTU})
+	if err != nil {
+		return nil, fmt.Errorf("tun setting json: %w", err)
+	}
+
+	tunSettings := json.RawMessage(tunJson)
+	freedomSettings := json.RawMessage(`{"domainStrategy":"UseIP"}`)
+
+	xrayCfg := buildCoreConfig(ruCIDRs, &tunSettings, &freedomSettings, outboundConfig)
+
+	return xrayCfg.Build()
+}
+
+func buildCoreConfig(
+	ruCIDRs []string,
+	tunSettings *json.RawMessage,
+	freedomSettings *json.RawMessage,
+	outboundConfig *conf.OutboundDetourConfig,
+) *conf.Config {
+	return &conf.Config{
 		LogConfig: &conf.LogConfig{
 			AccessLog: "none",
 			LogLevel:  "warning",
 		},
 		InboundConfigs: []conf.InboundDetourConfig{
-			buildTunInbound(),
+			{
+				Protocol: "tun",
+				Tag:      "tun-in",
+				Settings: tunSettings,
+				SniffingConfig: &conf.SniffingConfig{
+					Enabled:      true,
+					DestOverride: conf.NewStringList([]string{"http", "tls", "quic"}),
+				},
+			},
 		},
 		OutboundConfigs: []conf.OutboundDetourConfig{
-			buildDirectOutbound(routing.Fwmark),
-			*proxyOut,
+			{
+				Protocol: "freedom",
+				Tag:      "local",
+				Settings: freedomSettings,
+			},
+			{
+				Protocol: "freedom",
+				Tag:      "direct",
+				Settings: freedomSettings,
+				StreamSetting: &conf.StreamConfig{
+					SocketSettings: &conf.SocketConfig{
+						Mark: int32(routing.Fwmark),
+					},
+				},
+			},
+			*outboundConfig,
 		},
-		RouterConfig: buildRouterConfig(proxyOut.Tag, ruCIDRs),
+		RouterConfig: buildRouterConfig(outboundConfig.Tag, ruCIDRs),
 		DNSConfig: &conf.DNSConfig{
 			Servers: []*conf.NameServerConfig{
 				{Address: &conf.Address{Address: net.ParseAddress("8.8.8.8")}},
@@ -47,85 +88,27 @@ func BuildCoreConfig() (*core.Config, error) {
 			QueryStrategy: "UseIP",
 		},
 	}
-
-	return xrayCfg.Build()
-}
-
-func buildProxyOutbound() (*conf.OutboundDetourConfig, error) {
-	out, err := getActiveOutboundConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	if out.StreamSetting == nil {
-		out.StreamSetting = &conf.StreamConfig{}
-	}
-	if out.StreamSetting.SocketSettings == nil {
-		out.StreamSetting.SocketSettings = &conf.SocketConfig{}
-	}
-	out.StreamSetting.SocketSettings.Mark = int32(routing.Fwmark)
-
-	if out.Tag == "" {
-		out.Tag = "proxy"
-	}
-
-	return out, nil
-}
-
-func buildDirectOutbound(mark int) conf.OutboundDetourConfig {
-	freedomSettings := json.RawMessage(`{"domainStrategy":"UseIP"}`)
-	out := conf.OutboundDetourConfig{
-		Protocol: "freedom",
-		Tag:      "direct",
-		Settings: &freedomSettings,
-		StreamSetting: &conf.StreamConfig{
-			SocketSettings: &conf.SocketConfig{
-				Mark: int32(mark),
-			},
-		},
-	}
-	return out
-}
-
-func buildTunInbound() conf.InboundDetourConfig {
-	tunJson, _ := json.Marshal(map[string]any{
-		"name": routing.TunDev,
-		"mtu":  routing.TunMTU,
-	})
-	tunSettings := json.RawMessage(tunJson)
-
-	return conf.InboundDetourConfig{
-		Protocol: "tun",
-		Tag:      "tun-in",
-		Settings: &tunSettings,
-		SniffingConfig: &conf.SniffingConfig{
-			Enabled:      true,
-			DestOverride: conf.NewStringList([]string{"http", "tls", "quic"}),
-		},
-	}
 }
 
 func buildRouterConfig(proxyTag string, ruCIDRs []string) *conf.RouterConfig {
-	var directIPs []string
-
-	directIPs = append(directIPs, geodataDirectIPs()...)
-	directIPs = append(directIPs, ruCIDRs...)
-	directIPs = append(directIPs, []string{"1.1.1.1", "8.8.8.8", "8.8.4.4"}...)
-
-	ipRule, _ := json.Marshal(map[string]any{
+	localRule, _ := json.Marshal(map[string]any{
+		"type":        "field",
+		"inboundTag":  "tun-in",
+		"outboundTag": "local",
+		"ip":          []string{"geoip:private"},
+	})
+	directRule, _ := json.Marshal(map[string]any{
 		"type":        "field",
 		"inboundTag":  "tun-in",
 		"outboundTag": "direct",
-		"ip":          directIPs,
+		"ip":          append(ruCIDRs, "1.1.1.1", "8.8.8.8", "8.8.4.4", "geoip:ru"),
 	})
-
 	fileTransferRule, _ := json.Marshal(map[string]any{
 		"type":        "field",
 		"inboundTag":  "tun-in",
 		"outboundTag": "direct",
 		"protocol":    []string{"bittorrent", "ftp"},
 	})
-
 	proxyRule, _ := json.Marshal(map[string]any{
 		"type":        "field",
 		"network":     "tcp,udp",
@@ -136,7 +119,8 @@ func buildRouterConfig(proxyTag string, ruCIDRs []string) *conf.RouterConfig {
 
 	return &conf.RouterConfig{
 		RuleList: []json.RawMessage{
-			ipRule,
+			localRule,
+			directRule,
 			fileTransferRule,
 			proxyRule,
 		},

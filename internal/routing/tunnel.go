@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/realglebivanov/xray-vpn/internal/routing/state"
+	"github.com/realglebivanov/xray-vpn/internal/std"
 	"github.com/vishvananda/netlink"
 )
 
@@ -17,9 +18,11 @@ type Tunnel struct {
 	TunAddr *netlink.Addr
 }
 
-const (
-	TunDev = "xray0"
-	TunMTU = 1500
+var (
+	TunDev = std.EnvOr("TUN_DEV", "xray0")
+	LanDev = std.EnvOr("LAN_DEV", "wlp4s0")
+	WanDev = std.EnvOr("WAN_DEV", "eno1")
+	TunMTU = std.EnvOrInt("TUN_MTU", 1500)
 )
 
 func TearDownTunnel(tun *Tunnel) error {
@@ -53,10 +56,10 @@ func SetUpTunnel() (*Tunnel, error) {
 	tunnel := Tunnel{Gw: gw, TunLink: tunLink, TunAddr: tunAddr}
 
 	if err := populateRouteTable(&tunnel); err != nil {
-		return nil, fmt.Errorf("populate table: %w", err)
+		return &tunnel, fmt.Errorf("populate table: %w", err)
 	}
 	if err := allowForwardToTun(); err != nil {
-		return nil, fmt.Errorf("firewall: %w", err)
+		return &tunnel, fmt.Errorf("firewall: %w", err)
 	}
 	return &tunnel, nil
 }

@@ -7,7 +7,7 @@ type Link struct {
 	Link string `json:"link"`
 }
 
-func (l Link) Summary() string {
+func (l *Link) Summary() string {
 	u, err := url.Parse(l.Link)
 	if err != nil {
 		return l.Link
