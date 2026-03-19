@@ -1,0 +1,35 @@
+#!/bin/sh
+set -e
+
+if ! getent group xrayvpn > /dev/null 2>&1; then
+    addgroup --system xrayvpn
+fi
+
+if ! getent passwd xrayvpn > /dev/null 2>&1; then
+    adduser --system --no-create-home --shell /usr/sbin/nologin \
+            --ingroup xrayvpn xrayvpn
+fi
+
+echo "xrayvpn: set proxy link with: xrayvpn link add <vless://...>"
+echo "xrayvpn: to allow a user to control the service, run: usermod -aG xrayvpn <username>"
+
+mkdir -p /run/xrayvpn /var/cache/xrayvpn
+
+chown xrayvpn:xrayvpn /usr/bin/xrayvpnd
+chown xrayvpn:xrayvpn /usr/bin/tun2socksd
+chown xrayvpn:xrayvpn /usr/bin/xrayvpn
+chown -R xrayvpn:xrayvpn /etc/xrayvpn /run/xrayvpn /var/cache/xrayvpn
+
+chmod 4550 /usr/bin/xrayvpn
+chmod 500 /usr/bin/xrayvpnd
+chmod 500 /usr/bin/tun2socksd
+chmod 770 /etc/xrayvpn
+chmod 770 /run/xrayvpn
+chmod 770 /var/cache/xrayvpn
+
+systemctl daemon-reload
+systemctl enable xrayvpnd.service || true
+systemctl enable tun2socksd.service || true
+systemctl enable --now xrayvpnd-refresh.timer || true
+systemctl restart xrayvpnd.service || true
+systemctl restart tun2socksd.service || true

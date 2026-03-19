@@ -1,8 +1,0 @@
-#!/bin/sh
-set -e
-
-if [ "$1" = "purge" ]; then
-    rm -rf /etc/xray-vpn /run/xray-vpn /var/cache/xray-vpn
-fi
-
-systemctl daemon-reload || true

@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh xrayvpn geodata and RU CIDRs
+After=xrayvpnd.service
+Requires=xrayvpnd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/xrayvpn refresh
+User=xrayvpn
+

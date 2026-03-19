@@ -1,0 +1,22 @@
+[Unit]
+Description=Xray VPN daemon
+After=network-online.target
+Requires=network-online.target
+Wants=tun2socksd.service
+
+[Service]
+Type=notify
+AmbientCapabilities=CAP_NET_ADMIN
+RuntimeDirectory=xrayvpn
+CacheDirectory=xrayvpn
+Environment="XRAY_LOCATION_ASSET=/var/cache/xrayvpn"
+ExecStart=/usr/bin/xrayvpnd
+PIDFile=/run/xrayvpn/xrayvpnd.pid
+Restart=on-failure
+RestartSec=5
+User=xrayvpn
+Group=xrayvpn
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
