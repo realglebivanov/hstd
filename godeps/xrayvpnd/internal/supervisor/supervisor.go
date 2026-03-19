@@ -1,0 +1,92 @@
+package supervisor
+
+import (
+	"fmt"
+	"log"
+	"sync"
+
+	"github.com/realglebivanov/hstd/xrayvpnd/internal/config"
+	core "github.com/xtls/xray-core/core"
+	_ "github.com/xtls/xray-core/main/distro/all"
+)
+
+type supervisor struct {
+	mu       sync.Mutex
+	instance *core.Instance
+	running  bool
+}
+
+func (s *supervisor) start() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.startLocked()
+}
+
+func (s *supervisor) stop() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.stopLocked()
+}
+
+func (s *supervisor) refresh() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if err := config.RefreshGeodata(); err != nil {
+		return fmt.Errorf("refresh geodata failed: %v", err)
+	}
+	if _, err := config.RefreshRuCIDRs(); err != nil {
+		return fmt.Errorf("refresh CIDRs failed: %v", err)
+	}
+	if !s.running {
+		log.Printf("data refreshed (not running, skipping restart)")
+		return nil
+	}
+
+	log.Println("data refreshed, restarting with new data ...")
+	return s.startLocked()
+}
+
+func (s *supervisor) startLocked() error {
+	if s.running {
+		if err := s.stopLocked(); err != nil {
+			return err
+		}
+	}
+
+	coreConfig, err := config.BuildCoreConfig()
+	if err != nil {
+		return fmt.Errorf("build xray-core config: %w", err)
+	}
+
+	log.Println("starting xray-core ...")
+	instance, err := core.New(coreConfig)
+	if err != nil {
+		return fmt.Errorf("create xray-core: %w", err)
+	}
+	if err := instance.Start(); err != nil {
+		return fmt.Errorf("start xray-core: %w", err)
+	}
+	s.instance = instance
+	s.running = true
+
+	log.Println("xray-core started")
+	return nil
+}
+
+func (s *supervisor) stopLocked() error {
+	if s.instance == nil {
+		s.running = false
+		return nil
+	}
+
+	if err := s.instance.Close(); err != nil {
+		return err
+	}
+
+	s.instance = nil
+	s.running = false
+	log.Println("stopped xray-core")
+
+	return nil
+}

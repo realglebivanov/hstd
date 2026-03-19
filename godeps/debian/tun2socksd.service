@@ -1,0 +1,17 @@
+[Unit]
+Description=TUN to SOCKS proxy daemon
+After=xrayvpnd.service
+BindsTo=xrayvpnd.service
+
+[Service]
+Type=simple
+AmbientCapabilities=CAP_NET_ADMIN
+CacheDirectory=xrayvpn
+ExecStart=/usr/bin/tun2socksd
+Restart=on-failure
+RestartSec=5
+User=xrayvpn
+Group=xrayvpn
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "remove" ]; then
+    systemctl stop tun2socksd.service 2>/dev/null || true
+    systemctl stop xrayvpnd.service 2>/dev/null || true
+    systemctl disable tun2socksd.service 2>/dev/null || true
+    systemctl disable xrayvpnd.service 2>/dev/null || true
+    systemctl disable --now xrayvpnd-refresh.timer 2>/dev/null || true
+fi
+
