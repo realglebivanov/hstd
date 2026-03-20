@@ -14,7 +14,7 @@ server.user(
     ],
 )
 
-for svc in ["nftables", "dnsmasq", "hostapd", "xrayvpnd", "navidrome", "sshd", "networking"]:
+for svc in ["nftables", "dnsmasq", "hostapd", "xrayvpnd", "navidrome", "ssh", "systemd-networkd", "networkd-dispatcher"]:
     systemd.service(
         name=f"Enable and start {svc}",
         service=svc,
@@ -23,3 +23,6 @@ for svc in ["nftables", "dnsmasq", "hostapd", "xrayvpnd", "navidrome", "sshd", "
         restarted=changed(svc),
         daemon_reload=changed(svc),
     )
+
+for svc in ["systemd-networkd-wait-online"]:
+    systemd.service(name=f"Disable and stop {svc}", service=svc, running=False, enabled=False)

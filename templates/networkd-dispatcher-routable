@@ -1,0 +1,3 @@
+#!/bin/bash
+[ "$IFACE" = "eno1" ] || exit 0
+systemctl start --no-block xrayvpnd.service
