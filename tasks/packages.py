@@ -18,7 +18,8 @@ for pkg in [
     "ffmpeg",
     "curl",
     "rsync",
-    "networkd-dispatcher"
+    "networkd-dispatcher",
+    "systemd-resolved"
 ]: notify(pkg, apt.packages(name=f"Install {pkg}", packages=[pkg], present=True, _env=_APT_ENV))
 
 XRAYVPN_DEB_PATH = "xrayvpn/target/deb/xrayvpn_0.1.0_amd64.deb"

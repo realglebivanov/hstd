@@ -1,11 +1,10 @@
 [Match]
 Name=eno1
 
-[Link]
-MACAddress=28:ee:52:d6:09:86
-
 [Network]
 DHCP=yes
 
 [DHCPv4]
 RouteMetric=100
+UseDNS=yes
+UseDomains=yes
