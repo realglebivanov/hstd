@@ -50,12 +50,11 @@ func buildCoreConfig(
 				Protocol: "socks",
 				Tag:      "socks-in",
 				ListenOn: &conf.Address{Address: net.ParseAddress(hstdlib.SocksHost)},
-				PortList: &conf.PortList{Range: []conf.PortRange{{From: hstdlib.SocksPort, To: hstdlib.SocksPort}}},
-				Settings: socksSettings,
-				SniffingConfig: &conf.SniffingConfig{
-					Enabled:      true,
-					DestOverride: conf.NewStringList([]string{"http", "tls", "quic"}),
-				},
+				PortList: &conf.PortList{Range: []conf.PortRange{
+					{From: hstdlib.SocksPort, To: hstdlib.SocksPort},
+				}},
+				Settings:       socksSettings,
+				SniffingConfig: &conf.SniffingConfig{Enabled: false},
 			},
 		},
 		OutboundConfigs: []conf.OutboundDetourConfig{
@@ -77,9 +76,10 @@ func buildCoreConfig(
 		RouterConfig: buildRouterConfig(outboundConfig.Tag, ruCIDRs),
 		DNSConfig: &conf.DNSConfig{
 			Servers: []*conf.NameServerConfig{
-				{Address: &conf.Address{Address: net.ParseAddress("https+local://1.1.1.1/dns-query")}},
 				{Address: &conf.Address{Address: net.ParseAddress("https+local://8.8.8.8/dns-query")}},
 				{Address: &conf.Address{Address: net.ParseAddress("https+local://8.8.4.4/dns-query")}},
+				{Address: &conf.Address{Address: net.ParseAddress("https+local://1.1.1.1/dns-query")}},
+				{Address: &conf.Address{Address: net.ParseAddress("https+local://127.0.0.1/dns-query")}},
 			},
 			QueryStrategy: "UseIP",
 		},
