@@ -1,8 +1,10 @@
 from pyinfra.operations import systemd, server
-from operations.triggers import changed
+from deploy.triggers import changed
+from pyinfra import host, local
+from os import path
 
-import operations.packages
-import operations.configs
+local.include(filename=path.join("tasks", "packages.py"))
+local.include(filename=path.join("tasks", "configs.py"))
 
 server.user(
     name="Configure gleb user with SSH key",

@@ -1,6 +1,5 @@
 from pyinfra.operations import files
-
-from operations.triggers import notify
+from deploy.triggers import notify
 
 notify("systemd-networkd", files.sync(
     name="Sync /etc/systemd/network",
@@ -11,12 +10,14 @@ notify("systemd-networkd", files.sync(
 notify("nftables", files.template(
         name="Deploy /etc/nftables.conf",
         src="templates/nftables.conf.j2",
-        dest="/etc/nftables.conf", mode="0644", user="root", group="root"))
+        dest="/etc/nftables.conf",
+        mode="0644", user="root", group="root"))
 
 notify("dnsmasq", files.template(
         name="Deploy /etc/dnsmasq.conf",
         src="templates/dnsmasq.conf.j2",
-        dest="/etc/dnsmasq.conf", mode="0644", user="root", group="root"))
+        dest="/etc/dnsmasq.conf",
+        mode="0644", user="root", group="root"))
 
 notify("hostapd", files.template(
     name="Deploy /etc/hostapd/hostapd.conf",
@@ -24,7 +25,7 @@ notify("hostapd", files.template(
     dest="/etc/hostapd/hostapd.conf",
     mode="0600", user="root", group="root"))
 
-notify("sshd", files.template(
+notify("ssh", files.template(
     name="Deploy /etc/ssh/sshd_config",
     src="templates/sshd_config.j2",
     dest="/etc/ssh/sshd_config",

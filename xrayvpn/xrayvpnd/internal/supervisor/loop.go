@@ -9,14 +9,6 @@ import (
 	"syscall"
 )
 
-var supportedSignals = []os.Signal{
-	syscall.SIGUSR1,
-	syscall.SIGUSR2,
-	syscall.SIGHUP,
-	syscall.SIGTERM,
-	syscall.SIGINT,
-}
-
 func Run() error {
 	s := &supervisor{}
 
@@ -24,11 +16,26 @@ func Run() error {
 		return fmt.Errorf("initial start: %w", err)
 	}
 
-	sdNotify("READY=1")
+	if err := sdNotify("READY=1"); err != nil {
+		if sErr := s.stop(); sErr != nil {
+			log.Printf("stop supervisor %v", sErr)
+		}
+		return fmt.Errorf("send ready signal to systemd %v", err)
+	}
 
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, supportedSignals...)
+	signal.Notify(sigCh,
+		syscall.SIGUSR1,
+		syscall.SIGUSR2,
+		syscall.SIGHUP,
+		syscall.SIGTERM,
+		syscall.SIGINT,
+	)
 
+	return handleSignals(s, sigCh)
+}
+
+func handleSignals(s *supervisor, sigCh chan os.Signal) error {
 	for sig := range sigCh {
 		switch sig {
 		case syscall.SIGUSR2:
@@ -57,18 +64,18 @@ func Run() error {
 	return nil
 }
 
-func sdNotify(state string) {
+func sdNotify(state string) error {
 	addr := os.Getenv("NOTIFY_SOCKET")
 	if addr == "" {
-		return
+		return fmt.Errorf("no NOTIFY_SOCKET")
 	}
 	conn, err := net.Dial("unixgram", addr)
 	if err != nil {
-		log.Printf("sd_notify: %v", err)
-		return
+		return fmt.Errorf("sd_notify: %v", err)
 	}
 	defer conn.Close()
 	if _, err := conn.Write([]byte(state)); err != nil {
-		log.Printf("sd_notify: %v", err)
+		return fmt.Errorf("sd_notify: %v", err)
 	}
+	return nil
 }

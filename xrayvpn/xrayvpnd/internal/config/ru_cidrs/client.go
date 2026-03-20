@@ -53,7 +53,11 @@ func FetchRuCIDRs() ([]string, error) {
 		}
 	}
 
-	log.Printf("fetched %d unique RU CIDRs (%d/%d RIRs failed)", len(cidrs), len(errs), len(cidrUrls))
+	if len(errs) != 0 {
+		return nil, fmt.Errorf("%d/%d RIRs failed", len(errs), len(cidrUrls))
+	}
+
+	log.Printf("fetched %d unique RU CIDRs", len(cidrs))
 	return cidrs, nil
 }
 
