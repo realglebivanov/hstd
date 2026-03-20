@@ -10,7 +10,6 @@ channel=36
 # Enable 802.11n/ac/ax
 ieee80211n=1
 ieee80211ac=1
-ieee80211ax=1
 
 # WPA2/WPA3
 wpa=2
@@ -22,6 +21,8 @@ wpa_psk={{ host.data.wpa_psk }}
 ht_capab=[HT40+][SHORT-GI-20][SHORT-GI-40]
 
 # 80MHz for VHT (802.11ac)
+vht_capab=[MAX-MPDU-11454][RXLDPC][SHORT-GI-80][TX-STBC-2BY1][SU-BEAMFORMEE][MU-BEAMFORMEE]
+wmm_enabled=1
 vht_oper_chwidth=1
 vht_oper_centr_freq_seg0_idx=42
 

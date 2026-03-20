@@ -15,6 +15,10 @@ table inet filter {
         # Allow ICMP (ping)
         ip protocol icmp counter accept
         ip6 nexthdr icmpv6 counter accept
+
+        # Navidrome
+        iifname "eno1" tcp dport 4533 counter accept
+        iifname "wlp4s0" tcp dport 4533 counter accept
         
         # Allow SSH from LAN only
         iifname "wlp4s0" tcp dport 22 counter accept
