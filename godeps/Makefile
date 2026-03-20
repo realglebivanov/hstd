@@ -32,7 +32,7 @@ deb: build
 	install -m755  debian/postrm           $(STAGE)/DEBIAN/postrm
 	cp             debian/control          $(STAGE)/DEBIAN/control
 	echo "/etc/xrayvpn/state.json" > $(STAGE)/DEBIAN/conffiles
-	dpkg-deb --build --root-owner-group $(STAGE)
+	SOURCE_DATE_EPOCH=0 dpkg-deb --build --root-owner-group $(STAGE)
 	@echo "Package built: target/deb/$(DEB_NAME)"
 
 clean:
