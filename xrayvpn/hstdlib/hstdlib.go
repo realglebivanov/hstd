@@ -2,6 +2,7 @@ package hstdlib
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/user"
 	"strconv"
@@ -12,12 +13,26 @@ import (
 var (
 	SocksHost        = EnvOr("SOCKS_HOST", "127.0.0.1")
 	SocksPort        = EnvOrUint32("SOCKS_PORT", 1080)
+	ApdCIDR          = EnvOr("APD_CIDR", "")
 	TransmissionUser = EnvOr("TRANSMISSION_USER", "debian-transmission")
 	XrayVpnPIDFile   = "/run/xrayvpn/xrayvpnd.pid"
 	Tun2SocksPIDFile = "/run/xrayvpn/tun2socksd.pid"
 	XrayOutMark      = EnvOrUint32("XRAY_OUT_MARK", 0x1f)
 	XrayTrafficMark  = EnvOrUint32("XRAY_TRAFFIC_MARK", 0x1337)
 )
+
+func ParseApdCIDR() (*net.IPNet, error) {
+	if ApdCIDR == "" {
+		return nil, fmt.Errorf("APD_CIDR is not set")
+	}
+
+	_, cidr, err := net.ParseCIDR(ApdCIDR)
+	if err != nil {
+		return nil, fmt.Errorf("parse APD_CIDR %q: %w", ApdCIDR, err)
+	}
+
+	return cidr, nil
+}
 
 func TransmissionUID() (uint32, error) {
 	u, err := user.Lookup(TransmissionUser)

@@ -1,7 +1,7 @@
 interface={{ host.data.apd_dev }}
 
-dhcp-range=192.168.2.100,192.168.2.200,12h
-dhcp-option=option:router,192.168.2.50
+dhcp-range={{ host.data.dhcp_range_start }},{{ host.data.dhcp_range_end }},12h
+dhcp-option=option:router,{{ host.data.apd_ip }}
 
 dnssec
 dnssec-check-unsigned

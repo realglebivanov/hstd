@@ -11,7 +11,7 @@
   "rpc-host-whitelist-enabled": false,
   "rpc-port": 9091,
   "rpc-url": "/",
-  "rpc-whitelist": "127.0.0.1,192.168.2.*",
+  "rpc-whitelist": "{{ host.data.transmission_rpc_whitelist }}",
   "rpc-whitelist-enabled": true,
   "start-added-torrents": true,
   "trash-original-torrent-files": false

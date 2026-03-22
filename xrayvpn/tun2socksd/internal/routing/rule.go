@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net"
 	"syscall"
 
 	"github.com/realglebivanov/hstd/hstdlib"
@@ -13,9 +12,9 @@ import (
 )
 
 const (
-	localRulePriority        = 50
-	transmissionRulePriority = 90
-	xrayOutMarkRulePriority  = 100
+	localTransmissionRulePriority = 80
+	transmissionRulePriority      = 90
+	xrayOutMarkRulePriority       = 100
 )
 
 func setUpRules() error {
@@ -29,10 +28,14 @@ func setUpRules() error {
 		return nil
 	}
 
-	if err := netlink.RuleAdd(buildTransmissionLocalRule(uid)); err != nil {
-		return fmt.Errorf("set up transmission uid local rule: %w", err)
+	transmissionLocalRule, err := buildTransmissionLocalRule(uid)
+	if err != nil {
+		return fmt.Errorf("build transmission uid local rule: %w", err)
 	}
 
+	if err := netlink.RuleAdd(transmissionLocalRule); err != nil {
+		return fmt.Errorf("set up transmission uid local rule: %w", err)
+	}
 	if err := netlink.RuleAdd(buildTransmissionRule(uid)); err != nil {
 		return fmt.Errorf("set up transmission uid rule: %w", err)
 	}
@@ -51,10 +54,14 @@ func tearDownRules() error {
 		return nil
 	}
 
-	if err := netlink.RuleDel(buildTransmissionLocalRule(uid)); err != nil && !errors.Is(err, syscall.ENOENT) {
-		return fmt.Errorf("tear down transmission uid local rule: %w", err)
+	transmissionLocalRule, err := buildTransmissionLocalRule(uid)
+	if err != nil {
+		return fmt.Errorf("build transmission uid local rule: %w", err)
 	}
 
+	if err := netlink.RuleDel(transmissionLocalRule); err != nil && !errors.Is(err, syscall.ENOENT) {
+		return fmt.Errorf("tear down transmission uid local rule: %w", err)
+	}
 	if err := netlink.RuleDel(buildTransmissionRule(uid)); err != nil && !errors.Is(err, syscall.ENOENT) {
 		return fmt.Errorf("tear down transmission uid rule: %w", err)
 	}
@@ -70,16 +77,18 @@ func buildXrayOutMarkRule() *netlink.Rule {
 	return rule
 }
 
-func buildTransmissionLocalRule(uid uint32) *netlink.Rule {
+func buildTransmissionLocalRule(uid uint32) (*netlink.Rule, error) {
+	apdCIDR, err := hstdlib.ParseApdCIDR()
+	if err != nil {
+		return nil, err
+	}
+
 	rule := netlink.NewRule()
 	rule.UIDRange = netlink.NewRuleUIDRange(uid, uid)
-	rule.Dst = &net.IPNet{
-		IP:   net.IPv4(192, 168, 2, 0),
-		Mask: net.CIDRMask(24, 32),
-	}
+	rule.Dst = apdCIDR
 	rule.Table = unix.RT_TABLE_MAIN
-	rule.Priority = localRulePriority
-	return rule
+	rule.Priority = localTransmissionRulePriority
+	return rule, nil
 }
 
 func buildTransmissionRule(uid uint32) *netlink.Rule {

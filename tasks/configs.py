@@ -23,7 +23,7 @@ notify("dnsmasq", files.template(
         dest="/etc/dnsmasq.conf",
         mode="0644", user="root", group="root"))
 
-notify("transmission-daemon", files.put(
+notify("transmission-daemon", files.template(
         name="Deploy /etc/transmission-daemon/settings.json",
         src="templates/transmission-settings.json",
         dest="/etc/transmission-daemon/settings.defaults.json",
