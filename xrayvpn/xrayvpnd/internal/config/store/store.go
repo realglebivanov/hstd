@@ -94,13 +94,19 @@ func saveState(st *State) error {
 	data = append(data, '\n')
 	tmpPath := statePath + ".tmp"
 
-	if err := os.WriteFile(tmpPath, data, 0o660); err != nil {
+	f, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o660)
+	if err != nil {
+		return fmt.Errorf("create temp state file: %w", err)
+	}
+	defer os.Remove(tmpPath)
+	defer f.Close()
+
+	if _, err := f.Write(data); err != nil {
 		return fmt.Errorf("write temp state file: %w", err)
 	}
-
-	if err := os.Rename(tmpPath, statePath); err != nil {
-		return fmt.Errorf("rename temp state file: %w", err)
+	if err := f.Sync(); err != nil {
+		return fmt.Errorf("sync temp state file: %w", err)
 	}
 
-	return nil
+	return os.Rename(tmpPath, statePath)
 }

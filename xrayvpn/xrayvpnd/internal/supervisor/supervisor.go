@@ -62,6 +62,7 @@ func (s *supervisor) startLocked() error {
 		return fmt.Errorf("create xray-core: %w", err)
 	}
 	if err := instance.Start(); err != nil {
+		instance.Close()
 		return fmt.Errorf("start xray-core: %w", err)
 	}
 	s.instance = instance

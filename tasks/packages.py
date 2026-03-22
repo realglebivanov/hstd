@@ -21,7 +21,8 @@ for pkg in [
     "rsync",
     "networkd-dispatcher",
     "systemd-resolved",
-    "dns-root-data"
+    "dns-root-data",
+    "firmware-misc-nonfree"
 ]: notify(pkg, apt.packages(name=f"Install {pkg}", packages=[pkg], present=True, _env=_APT_ENV))
 
 XRAYVPN_DEB_PATH = "xrayvpn/target/deb/xrayvpn_0.1.0_amd64.deb"

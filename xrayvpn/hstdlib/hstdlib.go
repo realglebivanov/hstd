@@ -50,12 +50,12 @@ func TransmissionUID() (uint32, error) {
 
 func CheckCap(cap int) error {
 	hdr := unix.CapUserHeader{Version: unix.LINUX_CAPABILITY_VERSION_3}
-	data := unix.CapUserData{}
+	var data [2]unix.CapUserData
 
-	if err := unix.Capget(&hdr, &data); err != nil {
+	if err := unix.Capget(&hdr, &data[0]); err != nil {
 		return fmt.Errorf("unix.Capget: %v", err)
 	}
-	if data.Effective&(1<<cap) == 0 && os.Getuid() != 0 {
+	if data[cap/32].Effective&(1<<(cap%32)) == 0 && os.Getuid() != 0 {
 		return fmt.Errorf("neither required capability nor root")
 	}
 
