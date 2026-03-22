@@ -45,6 +45,10 @@ func parseLink(rawLink string) (*conf.OutboundDetourConfig, error) {
 		return nil, fmt.Errorf("invalid port: %w", err)
 	}
 
+	if u.User == nil {
+		return nil, fmt.Errorf("missing userinfo in vless link")
+	}
+
 	q := u.Query()
 
 	userJSON, _ := json.Marshal(map[string]string{

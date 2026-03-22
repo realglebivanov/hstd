@@ -16,14 +16,11 @@ func loadRuCIDRs() ([]string, error) {
 	cr := readCache(ruCIDRsName)
 	switch cr.State {
 	case cacheFresh:
-		cidrs := unmarshalCIDRs(cr.Data)
-		log.Printf("loaded %d cached RU CIDRs", len(cidrs))
-		return cidrs, nil
+		return unmarshalCIDRs(cr.Data)
 	case cacheStale:
-		cidrs := unmarshalCIDRs(cr.Data)
-		log.Printf("loaded %d stale RU CIDRs, will refresh in background", len(cidrs))
+		log.Print("will refresh RU CIDRs in background")
 		go RefreshRuCIDRs()
-		return cidrs, nil
+		return unmarshalCIDRs(cr.Data)
 	case cacheMissing:
 		return RefreshRuCIDRs()
 	case cacheError:
@@ -46,7 +43,7 @@ func RefreshRuCIDRs() ([]string, error) {
 	return cidrs, nil
 }
 
-func unmarshalCIDRs(data []byte) []string {
+func unmarshalCIDRs(data []byte) ([]string, error) {
 	var cidrs []string
 
 	scanner := bufio.NewScanner(bytes.NewReader(data))
@@ -58,5 +55,10 @@ func unmarshalCIDRs(data []byte) []string {
 			cidrs = append(cidrs, line)
 		}
 	}
-	return cidrs
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scan CIDRs: %w", err)
+	}
+
+	log.Printf("loaded %d cached RU CIDRs", len(cidrs))
+	return cidrs, nil
 }

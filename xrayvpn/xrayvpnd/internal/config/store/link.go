@@ -9,7 +9,7 @@ type Link struct {
 
 func (l *Link) Summary() string {
 	u, err := url.Parse(l.Link)
-	if err != nil {
+	if err != nil || u.User == nil {
 		return l.Link
 	}
 	uuid := u.User.Username()

@@ -64,11 +64,14 @@ func writeCacheFrom(name string, write func(*os.File) error) error {
 	if err != nil {
 		return err
 	}
-	defer os.Remove(tmp)
 
-	err = write(f)
-	f.Close()
-	if err != nil {
+	defer os.Remove(tmp)
+	defer f.Close()
+
+	if err = write(f); err != nil {
+		return err
+	}
+	if err = f.Sync(); err != nil {
 		return err
 	}
 

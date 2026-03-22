@@ -90,10 +90,16 @@ func fetchCidrs(client *http.Client, url string, ch chan<- *cidrResult) {
 		return
 	}
 
-	ch <- &cidrResult{cidrs: parseCIDRs(body), url: url}
+	cidrs, err := parseCIDRs(body)
+	if err != nil {
+		ch <- &cidrResult{err: err, url: url}
+		return
+	}
+
+	ch <- &cidrResult{cidrs: cidrs, url: url}
 }
 
-func parseCIDRs(body []byte) []string {
+func parseCIDRs(body []byte) ([]string, error) {
 	var cidrs []string
 	scanner := bufio.NewScanner(bytes.NewReader(body))
 
@@ -115,7 +121,11 @@ func parseCIDRs(body []byte) []string {
 		}
 		cidrs = append(cidrs, rangeToCIDRs(ip, uint(count))...)
 	}
-	return cidrs
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return cidrs, nil
 }
 
 func rangeToCIDRs(start net.IP, count uint) []string {
