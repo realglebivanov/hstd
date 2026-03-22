@@ -23,19 +23,13 @@ func Run() error {
 		return fmt.Errorf("send ready signal to systemd %v", err)
 	}
 
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh,
-		syscall.SIGUSR1,
-		syscall.SIGUSR2,
-		syscall.SIGHUP,
-		syscall.SIGTERM,
-		syscall.SIGINT,
-	)
-
-	return handleSignals(s, sigCh)
+	return handleSignals(s)
 }
 
-func handleSignals(s *supervisor, sigCh chan os.Signal) error {
+func handleSignals(s *supervisor) error {
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGUSR1, syscall.SIGUSR2, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGINT)
+
 	for sig := range sigCh {
 		switch sig {
 		case syscall.SIGUSR2:

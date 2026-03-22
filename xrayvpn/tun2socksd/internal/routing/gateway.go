@@ -5,7 +5,7 @@ import (
 	"log"
 	"net"
 
-	"github.com/realglebivanov/hstd/tun2socksd/routing/state"
+	"github.com/realglebivanov/hstd/tun2socksd/internal/routing/state"
 	"github.com/vishvananda/netlink"
 )
 

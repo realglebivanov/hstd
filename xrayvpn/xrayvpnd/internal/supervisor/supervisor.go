@@ -13,7 +13,6 @@ import (
 type supervisor struct {
 	mu       sync.Mutex
 	instance *core.Instance
-	running  bool
 }
 
 func (s *supervisor) start() error {
@@ -38,7 +37,7 @@ func (s *supervisor) refresh() error {
 	if _, err := config.RefreshRuCIDRs(); err != nil {
 		return fmt.Errorf("refresh CIDRs failed: %v", err)
 	}
-	if !s.running {
+	if s.instance == nil {
 		log.Printf("data refreshed (not running, skipping restart)")
 		return nil
 	}
@@ -48,10 +47,8 @@ func (s *supervisor) refresh() error {
 }
 
 func (s *supervisor) startLocked() error {
-	if s.running {
-		if err := s.stopLocked(); err != nil {
-			return err
-		}
+	if err := s.stopLocked(); err != nil {
+		return err
 	}
 
 	coreConfig, err := config.BuildCoreConfig()
@@ -68,7 +65,6 @@ func (s *supervisor) startLocked() error {
 		return fmt.Errorf("start xray-core: %w", err)
 	}
 	s.instance = instance
-	s.running = true
 
 	log.Println("xray-core started")
 	return nil
@@ -76,7 +72,6 @@ func (s *supervisor) startLocked() error {
 
 func (s *supervisor) stopLocked() error {
 	if s.instance == nil {
-		s.running = false
 		return nil
 	}
 
@@ -85,7 +80,6 @@ func (s *supervisor) stopLocked() error {
 	}
 
 	s.instance = nil
-	s.running = false
 	log.Println("stopped xray-core")
 
 	return nil
