@@ -8,11 +8,11 @@ import (
 	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
 	"github.com/google/nftables/userdata"
+	"github.com/realglebivanov/hstd/hstdlib"
 )
 
 const (
 	nftRuleComment = "xrayvpn"
-	vpnMark        = 0x00001337
 )
 
 var (
@@ -97,7 +97,7 @@ func buildForwardRule(from string, to string) *nftables.Rule {
 				Data:     ifname(to),
 			},
 			&expr.Counter{},
-			&expr.Immediate{Register: 1, Data: binaryutil.NativeEndian.PutUint32(vpnMark)},
+			&expr.Immediate{Register: 1, Data: binaryutil.NativeEndian.PutUint32(hstdlib.XrayTrafficMark)},
 			&expr.Meta{Key: expr.MetaKeyMARK, Register: 1, SourceRegister: true},
 			&expr.Verdict{Kind: expr.VerdictAccept},
 		},

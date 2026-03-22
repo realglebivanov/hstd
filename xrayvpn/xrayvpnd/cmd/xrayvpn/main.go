@@ -12,10 +12,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type managedProcess struct {
+	name    string
+	pidFile string
+}
+
+var (
+	xrayvpndProcess = managedProcess{
+		name:    "daemon",
+		pidFile: hstdlib.XrayVpnPIDFile,
+	}
+	tun2socksdProcess = managedProcess{
+		name:    "tunnel",
+		pidFile: hstdlib.Tun2SocksPIDFile,
+	}
+)
+
 func main() {
 	root := &cobra.Command{
 		Use:          "xrayvpn",
-		Short:        "Control the xrayvpnd daemon",
+		Short:        "Control the xrayvpn tunnel and daemon",
 		SilenceUsage: true,
 	}
 
@@ -23,7 +39,6 @@ func main() {
 		newStartCmd(),
 		newStopCmd(),
 		newRefreshCmd(),
-		newStatusCmd(),
 		newLinkCmds(),
 	)
 
@@ -32,46 +47,37 @@ func main() {
 	}
 }
 
-func send(sig syscall.Signal) error {
-	p, err := findDaemon()
+func send(proc managedProcess, sig syscall.Signal) error {
+	p, err := findProcess(proc)
 	if err != nil {
 		return err
 	}
 	if err = p.Signal(sig); err != nil {
 		return fmt.Errorf("signal failed: %w", err)
 	}
-	log.Printf("sent to pid %d\n", p.Pid)
+	log.Printf("sent to %s pid %d\n", proc.name, p.Pid)
 	return nil
 }
 
-func status() {
-	p, err := findDaemon()
-	if err != nil {
-		log.Println("daemon is not running.")
-		return
-	}
-	log.Printf("daemon running (pid %d)\n", p.Pid)
-}
-
-func readPID() (int, error) {
-	data, err := os.ReadFile(hstdlib.XrayVpnPIDFile)
+func readPID(proc managedProcess) (int, error) {
+	data, err := os.ReadFile(proc.pidFile)
 	if err != nil {
 		return 0, err
 	}
 	return strconv.Atoi(strings.TrimSpace(string(data)))
 }
 
-func findDaemon() (*os.Process, error) {
-	pid, err := readPID()
+func findProcess(proc managedProcess) (*os.Process, error) {
+	pid, err := readPID(proc)
 	if err != nil {
-		return nil, fmt.Errorf("daemon not running (no pid file)")
+		return nil, fmt.Errorf("%s not running (no pid file)", proc.name)
 	}
 	p, err := os.FindProcess(pid)
 	if err != nil {
-		return nil, fmt.Errorf("find process %d: %w", pid, err)
+		return nil, fmt.Errorf("find %s process %d: %w", proc.name, pid, err)
 	}
 	if err = p.Signal(syscall.Signal(0)); err != nil {
-		return nil, fmt.Errorf("daemon pid %d not alive", pid)
+		return nil, fmt.Errorf("%s pid %d not alive", proc.name, pid)
 	}
 	return p, nil
 }

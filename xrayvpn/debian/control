@@ -10,4 +10,4 @@ Description: Xray VPN with automatic route management
  tun2socksd creates a TUN device via tun2socks and forwards to xray.
  Fetches Russian IP ranges at startup, injects routing rules,
  manages fwmark-based split routing via netlink.
- Control: xrayvpn start|stop|status
+ Control: xrayvpn start|stop

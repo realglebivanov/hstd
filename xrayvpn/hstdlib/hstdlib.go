@@ -9,10 +9,12 @@ import (
 )
 
 var (
-	SocksHost      = EnvOr("SOCKS_HOST", "127.0.0.1")
-	SocksPort      = EnvOrUint32("SOCKS_PORT", 1080)
-	XrayVpnPIDFile = "/run/xrayvpn/xrayvpnd.pid"
-	Fwmark         = 0x1f
+	SocksHost        = EnvOr("SOCKS_HOST", "127.0.0.1")
+	SocksPort        = EnvOrUint32("SOCKS_PORT", 1080)
+	XrayVpnPIDFile   = "/run/xrayvpn/xrayvpnd.pid"
+	Tun2SocksPIDFile = "/run/xrayvpn/tun2socksd.pid"
+	XrayOutMark      = EnvOrUint32("XRAY_OUT_MARK", 0x1f)
+	XrayTrafficMark  = EnvOrUint32("XRAY_TRAFFIC_MARK", 0x1337)
 )
 
 func CheckCap(cap int) error {

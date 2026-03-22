@@ -68,7 +68,7 @@ func buildCoreConfig(
 				Tag:      "direct",
 				Settings: freedomSettings,
 				StreamSetting: &conf.StreamConfig{
-					SocketSettings: &conf.SocketConfig{Mark: int32(hstdlib.Fwmark)},
+					SocketSettings: &conf.SocketConfig{Mark: int32(hstdlib.XrayOutMark)},
 				},
 			},
 			*outboundConfig,

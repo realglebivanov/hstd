@@ -70,6 +70,17 @@ notify("nftables", files.put(
     mode="0644", user="root", group="root"))
 
 notify("xrayvpnd", files.directory(
+    name="Create xrayvpnd.service.d",
+    path="/etc/systemd/system/xrayvpnd.service.d",
+    mode="0755", user="root", group="root"))
+
+notify("xrayvpnd", files.template(
+    name="Deploy xrayvpnd override.conf",
+    src="templates/xrayvpnd-override.conf.j2",
+    dest="/etc/systemd/system/xrayvpnd.service.d/override.conf",
+    mode="0644", user="root", group="root"))
+
+notify("xrayvpnd", files.directory(
     name="Create tun2socksd.service.d",
     path="/etc/systemd/system/tun2socksd.service.d",
     mode="0755", user="root", group="root"))

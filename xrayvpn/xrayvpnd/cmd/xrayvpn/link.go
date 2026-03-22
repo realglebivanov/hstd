@@ -26,7 +26,7 @@ func newLinkCmds() *cobra.Command {
 					return err
 				}
 				fmt.Println("link added")
-				return send(syscall.SIGUSR2)
+				return send(xrayvpndProcess, syscall.SIGUSR2)
 			},
 		},
 		&cobra.Command{
@@ -41,7 +41,7 @@ func newLinkCmds() *cobra.Command {
 				}
 				fmt.Println("link removed")
 				if activeChanged {
-					return send(syscall.SIGUSR2)
+					return send(xrayvpndProcess, syscall.SIGUSR2)
 				}
 				return nil
 			},
@@ -56,7 +56,7 @@ func newLinkCmds() *cobra.Command {
 					return err
 				}
 				fmt.Println("active link changed")
-				return send(syscall.SIGUSR2)
+				return send(xrayvpndProcess, syscall.SIGUSR2)
 			},
 		},
 		&cobra.Command{

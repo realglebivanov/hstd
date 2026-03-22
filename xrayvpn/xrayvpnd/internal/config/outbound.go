@@ -86,7 +86,7 @@ func buildStreamSettings(q url.Values) *conf.StreamConfig {
 	sc := &conf.StreamConfig{
 		Network:        (*conf.TransportProtocol)(&network),
 		Security:       security,
-		SocketSettings: &conf.SocketConfig{Mark: int32(hstdlib.Fwmark)},
+		SocketSettings: &conf.SocketConfig{Mark: int32(hstdlib.XrayOutMark)},
 	}
 
 	switch network {

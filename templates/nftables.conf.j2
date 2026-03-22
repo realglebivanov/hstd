@@ -40,7 +40,7 @@ table inet filter {
         iifname "lo" counter accept
 
         # Allow xray traffic forwarding
-        meta mark 0x00001337 counter accept
+        meta mark {{ host.data.xray_traffic_mark }} counter accept
  
         # Allow established/related
         ct state established,related counter accept

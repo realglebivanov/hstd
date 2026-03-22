@@ -9,10 +9,10 @@ import (
 func newStartCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:                "start",
-		Short:              "Start the VPN tunnel (SIGUSR2)",
+		Short:              "Start the VPN tunnel",
 		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return send(syscall.SIGUSR2)
+			return send(tun2socksdProcess, syscall.SIGUSR2)
 		},
 	}
 }
@@ -20,10 +20,10 @@ func newStartCmd() *cobra.Command {
 func newStopCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:                "stop",
-		Short:              "Stop the VPN tunnel (SIGUSR1)",
+		Short:              "Stop the VPN tunnel",
 		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return send(syscall.SIGUSR1)
+			return send(tun2socksdProcess, syscall.SIGUSR1)
 		},
 	}
 }
@@ -31,21 +31,10 @@ func newStopCmd() *cobra.Command {
 func newRefreshCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:                "refresh",
-		Short:              "Refresh config and geodata (SIGHUP)",
+		Short:              "Refresh daemon config and geodata",
 		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return send(syscall.SIGHUP)
-		},
-	}
-}
-
-func newStatusCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:                "status",
-		Short:              "Check daemon status",
-		DisableFlagParsing: true,
-		Run: func(cmd *cobra.Command, args []string) {
-			status()
+			return send(xrayvpndProcess, syscall.SIGHUP)
 		},
 	}
 }

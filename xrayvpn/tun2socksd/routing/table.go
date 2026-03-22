@@ -20,13 +20,13 @@ func populateRouteTable(tun *Tunnel) error {
 	}
 	log.Printf("default direct route is down %s", tun.Gw.IP.String())
 
-	if err := netlink.RuleAdd(buildFwmarkRule()); err != nil {
-		return fmt.Errorf("add fwmark rule: %w", err)
+	if err := netlink.RuleAdd(buildXrayOutMarkRule()); err != nil {
+		return fmt.Errorf("add xray out mark rule: %w", err)
 	}
 	if err := netlink.RouteReplace(buildDirectRoute(tun.Gw)); err != nil {
 		return fmt.Errorf("add route: %w", err)
 	}
-	log.Printf("proxy direct route is up (fwmark %#x → table %d)", hstdlib.Fwmark, directRouteTable)
+	log.Printf("proxy direct route is up (xray out mark %#x → table %d)", hstdlib.XrayOutMark, directRouteTable)
 
 	defaultRoute := buildDefaultRoute(tun)
 	if err := netlink.RouteReplace(defaultRoute); err != nil {
@@ -46,8 +46,8 @@ func cleanRouteTable(tun *Tunnel) error {
 	}
 	log.Printf("default route is restored %s", tun.Gw.IP.String())
 
-	if err := netlink.RuleDel(buildFwmarkRule()); err != nil && !errors.Is(err, syscall.ENOENT) {
-		return fmt.Errorf("delete fwmark rule: %w", err)
+	if err := netlink.RuleDel(buildXrayOutMarkRule()); err != nil && !errors.Is(err, syscall.ENOENT) {
+		return fmt.Errorf("delete xray out mark rule: %w", err)
 	}
 
 	if err := netlink.RouteDel(buildDirectRoute(tun.Gw)); err != nil && !errors.Is(err, syscall.ESRCH) {
@@ -78,9 +78,9 @@ func buildDirectRoute(gw *state.DefaultGateway) *netlink.Route {
 	}
 }
 
-func buildFwmarkRule() *netlink.Rule {
+func buildXrayOutMarkRule() *netlink.Rule {
 	rule := netlink.NewRule()
-	rule.Mark = uint32(hstdlib.Fwmark)
+	rule.Mark = hstdlib.XrayOutMark
 	rule.Table = directRouteTable
 	return rule
 }

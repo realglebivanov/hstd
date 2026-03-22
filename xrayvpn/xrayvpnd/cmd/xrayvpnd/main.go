@@ -1,11 +1,3 @@
-// xrayvpnd is the long-running daemon embedding xray-core.
-//
-// Signals:
-//   - SIGUSR2: (re)start xray + routes (daemon stays alive)
-//   - SIGUSR1: stop xray + routes (daemon stays alive)
-//   - SIGHUP: refresh geodata + RU CIDRs, restart if running
-//   - SIGTERM/SIGINT: full shutdown (daemon exits)
-
 package main
 
 import (
