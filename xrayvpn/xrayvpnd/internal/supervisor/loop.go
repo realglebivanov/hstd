@@ -1,6 +1,7 @@
 package supervisor
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -17,10 +18,7 @@ func Run() error {
 	}
 
 	if err := sdNotify("READY=1"); err != nil {
-		if sErr := s.stop(); sErr != nil {
-			log.Printf("stop supervisor %v", sErr)
-		}
-		return fmt.Errorf("send ready signal to systemd %v", err)
+		return errors.Join(err, s.stop())
 	}
 
 	return handleSignals(s)

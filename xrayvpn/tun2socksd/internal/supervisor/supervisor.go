@@ -1,16 +1,17 @@
 package supervisor
 
 import (
+	"errors"
 	"fmt"
 	"log"
 
 	"github.com/realglebivanov/hstd/hstdlib"
-	"github.com/realglebivanov/hstd/tun2socksd/internal/routing"
+	"github.com/realglebivanov/hstd/tun2socksd/internal/tunnel"
 	"github.com/xjasonlyu/tun2socks/v2/engine"
 )
 
 type Supervisor struct {
-	tun *routing.Tunnel
+	tun *tunnel.Tunnel
 }
 
 func (c *Supervisor) Start() error {
@@ -24,7 +25,7 @@ func (c *Supervisor) Start() error {
 	}
 
 	c.tun = tun
-	log.Printf("tunnel up: %v → %v", tun.Gw.IP, tun.TunAddr.IP)
+	log.Printf("tunnel up: %v → %v", tun.DefaultGwAddr(), tun.TunAddr())
 	return nil
 }
 
@@ -42,33 +43,32 @@ func (c *Supervisor) Stop() error {
 	return nil
 }
 
-func startEngine() (*routing.Tunnel, error) {
+func startEngine() (*tunnel.Tunnel, error) {
 	engine.Insert(&engine.Key{
-		Device:   routing.TunDev,
+		Device:   hstdlib.TunDev,
 		Proxy:    fmt.Sprintf("socks5://%s:%d", hstdlib.SocksHost, hstdlib.SocksPort),
-		MTU:      routing.TunMTU,
+		MTU:      hstdlib.TunMTU,
 		LogLevel: "warn",
 	})
 
 	engine.Start()
 
-	tun, err := routing.SetUpTunnel()
+	tun, err := tunnel.New()
 	if err != nil {
-		if stopErr := stopEngine(tun); stopErr != nil {
-			return nil, fmt.Errorf("tunnel: %w (cleanup: %v)", err, stopErr)
-		}
-		return nil, fmt.Errorf("tunnel: %w", err)
+		engine.Stop()
+		return nil, fmt.Errorf("tunnel new: %w", err)
+	}
+
+	if err := tun.SetUp(); err != nil {
+		return nil, errors.Join(err, stopEngine(tun))
 	}
 
 	return tun, nil
 }
 
-func stopEngine(tun *routing.Tunnel) error {
+func stopEngine(tun *tunnel.Tunnel) error {
 	engine.Stop()
-	if tun == nil {
-		return nil
-	}
-	if err := routing.TearDownTunnel(tun); err != nil {
+	if err := tun.TearDown(); err != nil {
 		return fmt.Errorf("tunnel teardown: %w", err)
 	}
 	return nil

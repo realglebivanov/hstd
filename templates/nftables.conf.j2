@@ -17,8 +17,8 @@ table inet filter {
         ip6 nexthdr icmpv6 counter accept
 
         # Navidrome
-        iifname "{{ host.data.wan_dev }}" tcp dport 4533 counter accept
-        iifname "{{ host.data.apd_dev }}" tcp dport 4533 counter accept
+        iifname "{{ host.data.wan_dev }}" tcp dport 8080 counter accept
+        iifname "{{ host.data.apd_dev }}" tcp dport 8080 counter accept
 
         # Transmission web UI from APD only
         iifname "{{ host.data.apd_dev }}" tcp dport 9091 counter accept

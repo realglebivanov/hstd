@@ -11,14 +11,25 @@ import (
 )
 
 var (
-	SocksHost        = EnvOr("SOCKS_HOST", "127.0.0.1")
-	SocksPort        = EnvOrUint32("SOCKS_PORT", 1080)
-	ApdCIDR          = EnvOr("APD_CIDR", "")
-	TransmissionUser = EnvOr("TRANSMISSION_USER", "debian-transmission")
-	XrayVpnPIDFile   = "/run/xrayvpn/xrayvpnd.pid"
-	Tun2SocksPIDFile = "/run/xrayvpn/tun2socksd.pid"
+	SocksHost = EnvOr("SOCKS_HOST", "127.0.0.1")
+	SocksPort = EnvOrUint32("SOCKS_PORT", 1080)
+	ApdCIDR   = EnvOr("APD_CIDR", "")
+
 	XrayOutMark      = EnvOrUint32("XRAY_OUT_MARK", 0x1f)
 	XrayTrafficMark  = EnvOrUint32("XRAY_TRAFFIC_MARK", 0x1337)
+	DirectRouteTable = 100
+
+	TunDev = EnvOr("TUN_DEV", "xray0")
+	ApdDev = EnvOr("APD_DEV", "wlp4s0")
+	WanDev = EnvOr("WAN_DEV", "eno1")
+	TunMTU = EnvOrInt("TUN_MTU", 1500)
+
+	XrayVpnPIDFile   = "/run/xrayvpn/xrayvpnd.pid"
+	Tun2SocksPIDFile = "/run/xrayvpn/tun2socksd.pid"
+
+	TransmissionUser    = EnvOr("TRANSMISSION_USER", "debian-transmission")
+	NavidromeUser       = EnvOr("NAVIDROME_USER", "navidrome")
+	DirectRouteServices = []string{TransmissionUser, NavidromeUser}
 )
 
 func ParseApdCIDR() (*net.IPNet, error) {
@@ -34,15 +45,15 @@ func ParseApdCIDR() (*net.IPNet, error) {
 	return cidr, nil
 }
 
-func TransmissionUID() (uint32, error) {
-	u, err := user.Lookup(TransmissionUser)
+func LookupUID(username string) (uint32, error) {
+	u, err := user.Lookup(username)
 	if err != nil {
-		return 0, fmt.Errorf("lookup %q: %w", TransmissionUser, err)
+		return 0, fmt.Errorf("lookup %q: %w", username, err)
 	}
 
 	uid, err := strconv.ParseUint(u.Uid, 10, 32)
 	if err != nil {
-		return 0, fmt.Errorf("parse %q uid %q: %w", TransmissionUser, u.Uid, err)
+		return 0, fmt.Errorf("parse %q uid %q: %w", username, u.Uid, err)
 	}
 
 	return uint32(uid), nil
