@@ -1,0 +1,21 @@
+[Unit]
+Description=V2RayN subscription server
+After=network-online.target
+Requires=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/subsrv
+Restart=on-failure
+RestartSec=5s
+DynamicUser=yes
+Environment=SECRET={{ host.data.rotate_secret }}
+Environment=PROXY_HOST={{ host.name }}
+Environment=SERVER_HOST={{ host.data.xray_server_addr }}
+Environment=REALITY_PBK={{ host.data.reality_pbk }}
+Environment=REALITY_SNI={{ host.data.reality_sni }}
+Environment=REALITY_SID={{ host.data.reality_sid }}
+Environment=SUB_PATH={{ host.data.sub_path }}
+
+[Install]
+WantedBy=multi-user.target

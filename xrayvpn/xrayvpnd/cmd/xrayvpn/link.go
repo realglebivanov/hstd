@@ -15,20 +15,24 @@ func newLinkCmds() *cobra.Command {
 		Use:   "link",
 		Short: "Manage VLESS links",
 	}
-	cmd.AddCommand(
-		&cobra.Command{
-			Use:                "add <url>",
-			Short:              "Add a VLESS link and activate it",
-			DisableFlagParsing: true,
-			Args:               cobra.ExactArgs(1),
-			RunE: func(cmd *cobra.Command, args []string) error {
-				if err := store.AddLink(args[0]); err != nil {
-					return err
-				}
-				fmt.Println("link added")
-				return send(xrayvpndProcess, syscall.SIGUSR2)
-			},
+	addCmd := &cobra.Command{
+		Use:   "add <url>",
+		Short: "Add a VLESS link and activate it",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rotate, _ := cmd.Flags().GetBool("rotate")
+			if err := store.AddLink(args[0], rotate); err != nil {
+				return err
+			}
+			fmt.Println("link added")
+			return send(xrayvpndProcess, syscall.SIGUSR2)
 		},
+	}
+	addCmd.Flags().Bool("rotate", false, "Mark link for automatic UUID rotation")
+
+	cmd.AddCommand(
+		newInitCmd(),
+		addCmd,
 		&cobra.Command{
 			Use:                "remove <id>",
 			Short:              "Remove a link by ID",
@@ -69,7 +73,7 @@ func newLinkCmds() *cobra.Command {
 					return err
 				}
 				table := tablewriter.NewWriter(os.Stdout)
-				table.Header("", "ID", "Link")
+				table.Header("", "ID", "Link", "Rotate")
 				if len(st.Links) == 0 {
 					table.Footer("No links saved")
 				}
@@ -78,7 +82,11 @@ func newLinkCmds() *cobra.Command {
 					if l.ID == st.ActiveID {
 						active = "*"
 					}
-					table.Append(active, l.ID, l.Summary())
+					rot := ""
+					if l.Rotate {
+						rot = "yes"
+					}
+					table.Append(active, l.ID, l.Summary(), rot)
 				}
 				table.Render()
 				return nil

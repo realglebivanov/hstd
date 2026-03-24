@@ -8,7 +8,10 @@ import (
 	"sync"
 )
 
-var mu sync.Mutex
+var (
+	mu                     sync.Mutex
+	ErrAlreadyInitialized = errors.New("links already initialized")
+)
 
 const statePath = "/etc/xrayvpn/state.json"
 
@@ -18,7 +21,7 @@ func GetState() (*State, error) {
 	return loadState()
 }
 
-func AddLink(link string) error {
+func AddLink(link string, rotate bool) error {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -27,7 +30,7 @@ func AddLink(link string) error {
 		return err
 	}
 
-	if err := st.addLink(link); err != nil {
+	if err := st.addLink(link, rotate); err != nil {
 		return err
 	}
 
@@ -61,6 +64,43 @@ func ChooseLink(id string) error {
 	}
 
 	if err := st.chooseLink(id); err != nil {
+		return err
+	}
+
+	return saveState(st)
+}
+
+func InitLinks(serverLink, proxyLink string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	st, err := loadState()
+	if err != nil {
+		return err
+	}
+	if len(st.Links) > 0 {
+		return ErrAlreadyInitialized
+	}
+
+	if err := st.addLink(proxyLink, true); err != nil {
+		return fmt.Errorf("add proxy link: %w", err)
+	}
+	if err := st.addLink(serverLink, true); err != nil {
+		return fmt.Errorf("add server link: %w", err)
+	}
+	return saveState(st)
+}
+
+func RotateUUID(uuid string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	st, err := loadState()
+	if err != nil {
+		return err
+	}
+
+	if err := st.rotateUUID(uuid); err != nil {
 		return err
 	}
 

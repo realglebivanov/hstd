@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -13,7 +14,7 @@ type State struct {
 	ActiveID string `json:"active_id"`
 }
 
-func (s *State) addLink(link string) error {
+func (s *State) addLink(link string, rotate bool) error {
 	link = strings.TrimSpace(link)
 
 	if err := validateLink(link); err != nil {
@@ -28,7 +29,7 @@ func (s *State) addLink(link string) error {
 
 	id := hashID(link)
 	s.ActiveID = id
-	s.Links = append(s.Links, Link{ID: id, Link: link})
+	s.Links = append(s.Links, Link{ID: id, Link: link, Rotate: rotate})
 
 	return nil
 }
@@ -75,6 +76,29 @@ func (s *State) chooseLink(id string) error {
 		}
 	}
 	return fmt.Errorf("link id %q not found", id)
+}
+
+func (s *State) rotateUUID(uuid string) error {
+	for i, l := range s.Links {
+		if !l.Rotate {
+			continue
+		}
+
+		u, err := url.Parse(l.Link)
+		if err != nil {
+			return fmt.Errorf("parse link %q: %w", l.ID, err)
+		}
+		u.User = url.User(uuid)
+		newLink := u.String()
+		newID := hashID(newLink)
+
+		if l.ID == s.ActiveID {
+			s.ActiveID = newID
+		}
+		s.Links[i].Link = newLink
+		s.Links[i].ID = newID
+	}
+	return nil
 }
 
 func hashID(link string) string {

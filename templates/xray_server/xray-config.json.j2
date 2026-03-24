@@ -1,0 +1,33 @@
+{
+    "log": {
+        "loglevel": "warning",
+        "dnsLog": false
+    },
+    "inbounds": [
+        {
+            "listen": "0.0.0.0",
+            "port": 443,
+            "protocol": "vless",
+            "settings": {
+                "clients": [],
+                "decryption": "none"
+            },
+            "streamSettings": {
+                "network": "tcp",
+                "security": "reality",
+                "realitySettings": {
+                    "target": "{{ host.data.reality_dest }}",
+                    "serverNames": {{ host.data.reality_server_names | tojson }},
+                    "privateKey": "{{ host.data.reality_private_key }}",
+                    "shortIds": ["{{ host.data.reality_short_id }}"]
+                }
+            }
+        }
+    ],
+    "outbounds": [
+        {
+            "protocol": "freedom",
+            "tag": "direct"
+        }
+    ]
+}

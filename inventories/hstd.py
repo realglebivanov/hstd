@@ -1,15 +1,11 @@
-import subprocess
-
-wpa_passphrase = subprocess.check_output(
-    ["pass", "hstd/wpa_passphrase"],
-    text=True
-).strip()
+from deploy import passwd, xray
 
 hosts = [
     ("192.168.2.50", {
+        "role": "hstd",
         "ssh_user": "gleb",
         "_sudo": True,
-        "wpa_passphrase": wpa_passphrase,
+        "wpa_passphrase": passwd.wpa_passphrase,
         "apd_ip": "192.168.2.50",
         "apd_cidr": "192.168.2.0/24",
         "apd_gateway_cidr": "192.168.2.50/24",
@@ -23,5 +19,11 @@ hosts = [
         "apd_dev": "wlp4s0",
         "lan_dev": "enp2s0",
         "tun_dev": "xray0",
+        "rotate_secret": passwd.rotate_secret,
+        "xray_server_addr": xray.xray_server_addr,
+        "xray_proxy_addr": xray.xray_proxy_addr,
+        "reality_pbk": xray.reality_pbk,
+        "reality_sni": xray.reality_sni,
+        "reality_sid": xray.reality_sid,
     }),
 ]

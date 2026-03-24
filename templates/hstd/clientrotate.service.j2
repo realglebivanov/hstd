@@ -1,0 +1,6 @@
+[Unit]
+Description=Rotate xray client UUID
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/xrayvpn rotate {{ host.data.rotate_secret }}

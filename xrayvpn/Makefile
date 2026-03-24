@@ -7,9 +7,13 @@ STAGE    := target/deb/$(PACKAGE)_$(VERSION)_$(DEB_ARCH)
 
 LDFLAGS := -s -w -buildid=
 
-.PHONY: build deb clean
+.PHONY: xrayconnectord build deb clean
 
 GO_BUILD := CGO_ENABLED=0 GOOS=linux GOARCH=$(DEB_ARCH) go -C
+
+xrayconnectord:
+	$(GO_BUILD) xrayconnectord build -trimpath -ldflags="$(LDFLAGS)" -o $(CURDIR)/target/clientrotate  ./cmd/clientrotate
+	$(GO_BUILD) xrayconnectord build -trimpath -ldflags="$(LDFLAGS)" -o $(CURDIR)/target/subsrv  ./cmd/subsrv
 
 build:
 	$(GO_BUILD) xrayvpnd  build -trimpath -ldflags="$(LDFLAGS)" -o $(CURDIR)/target/xrayvpnd  ./cmd/xrayvpnd

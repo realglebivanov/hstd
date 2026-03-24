@@ -3,8 +3,9 @@ package store
 import "net/url"
 
 type Link struct {
-	ID   string `json:"id"`
-	Link string `json:"link"`
+	ID     string `json:"id"`
+	Link   string `json:"link"`
+	Rotate bool   `json:"rotate,omitempty"`
 }
 
 func (l *Link) Summary() string {
