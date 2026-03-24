@@ -1,26 +1,107 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"path/filepath"
 
 	"github.com/realglebivanov/hstd/hstdlib"
-	"github.com/xtls/xray-core/common/net"
-	"github.com/xtls/xray-core/infra/conf"
-	"github.com/xtls/xray-core/proxy/vless"
 )
 
-type namedConfig struct {
-	Remarks string `json:"remarks"`
-	*conf.Config
+type config struct {
+	Remarks   string        `json:"remarks"`
+	Log       logConfig     `json:"log"`
+	DNS       dnsConfig     `json:"dns"`
+	Inbounds  []inbound     `json:"inbounds"`
+	Outbounds []outbound    `json:"outbounds"`
+	Routing   routingConfig `json:"routing"`
 }
 
-type xrayConfig struct {
+type logConfig struct {
+	LogLevel string `json:"loglevel"`
+}
+
+type dnsConfig struct {
+	Servers []string `json:"servers"`
+}
+
+type inbound struct {
+	Tag      string          `json:"tag"`
+	Protocol string          `json:"protocol"`
+	Port     uint16          `json:"port"`
+	Listen   string          `json:"listen"`
+	Settings *socksSettings  `json:"settings,omitempty"`
+	Sniffing *sniffingConfig `json:"sniffing,omitempty"`
+}
+
+type socksSettings struct {
+	UDP bool `json:"udp"`
+}
+
+type sniffingConfig struct {
+	Enabled      bool     `json:"enabled"`
+	DestOverride []string `json:"destOverride"`
+}
+
+type outbound struct {
+	Tag            string        `json:"tag"`
+	Protocol       string        `json:"protocol"`
+	Settings       any           `json:"settings,omitempty"`
+	StreamSettings *streamConfig `json:"streamSettings,omitempty"`
+}
+
+type vlessSettings struct {
+	Vnext []vlessServer `json:"vnext"`
+}
+
+type vlessServer struct {
+	Address string      `json:"address"`
+	Port    uint16      `json:"port"`
+	Users   []vlessUser `json:"users"`
+}
+
+type vlessUser struct {
+	ID         string `json:"id"`
+	Flow       string `json:"flow"`
+	Encryption string `json:"encryption"`
+}
+
+type freedomSettings struct {
+	DomainStrategy string `json:"domainStrategy"`
+}
+
+type streamConfig struct {
+	Network         string         `json:"network"`
+	Security        string         `json:"security"`
+	REALITYSettings *realityConfig `json:"realitySettings,omitempty"`
+}
+
+type realityConfig struct {
+	Fingerprint string   `json:"fingerprint"`
+	ServerName  string   `json:"serverName"`
+	ServerNames []string `json:"serverNames"`
+	PublicKey   string   `json:"publicKey"`
+	PrivateKey  string   `json:"privateKey"`
+	ShortId     string   `json:"shortId"`
+}
+
+type routingConfig struct {
+	DomainStrategy string      `json:"domainStrategy"`
+	Rules          []routeRule `json:"rules"`
+}
+
+type routeRule struct {
+	Type        string   `json:"type"`
+	OutboundTag string   `json:"outboundTag"`
+	IP          []string `json:"ip,omitempty"`
+	Domain      []string `json:"domain,omitempty"`
+	Network     string   `json:"network,omitempty"`
+}
+
+type serverConfig struct {
 	remark     string
-	secret     uint64
 	host       string
 	realityPbk string
 	realitySni string
@@ -30,7 +111,8 @@ type xrayConfig struct {
 func main() {
 	subPath := hstdlib.MustEnv("SUB_PATH")
 	secret := hstdlib.MustEnvUint64("SECRET")
-	xrayConfigs := []*xrayConfig{{
+
+	servers := []*serverConfig{{
 		remark:     "Обычный ВПН",
 		host:       hstdlib.MustEnv("SERVER_HOST"),
 		realityPbk: hstdlib.MustEnv("REALITY_PBK"),
@@ -45,17 +127,14 @@ func main() {
 	}}
 
 	http.HandleFunc("/"+subPath, func(w http.ResponseWriter, r *http.Request) {
-		namedConfigs, err := buildNamedConfigs(secret, xrayConfigs)
-		if err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
+		uuid := hstdlib.GenerateClientUUID(secret)
+		configs := buildConfigs(uuid, servers)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("profile-update-interval", "1")
+		w.Header().Set("profile-title", "base64:"+base64.StdEncoding.EncodeToString([]byte("hstd")))
 
-		if err := json.NewEncoder(w).Encode(namedConfigs); err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
+		if err := json.NewEncoder(w).Encode(configs); err != nil {
 			log.Printf("encode response: %v", err)
 		}
 	})
@@ -67,147 +146,86 @@ func main() {
 	log.Fatal(http.ListenAndServeTLS(":8080", certFile, keyFile, nil))
 }
 
-func buildNamedConfigs(secret uint64, xrayConfigs []*xrayConfig) ([]namedConfig, error) {
-	uuid := hstdlib.GenerateClientUUID(secret)
-
-	var namedCfgs = make([]namedConfig, len(xrayConfigs))
-
-	for i, xrayConfig := range xrayConfigs {
-		proxyCfg, err := buildConfig(uuid, xrayConfig)
-		if err != nil {
-			return nil, fmt.Errorf("build proxy config: %v", err)
-		}
-		namedCfgs[i] = namedConfig{xrayConfig.remark, proxyCfg}
-	}
-
-	return namedCfgs, nil
-}
-
-func buildConfig(uuid string, xrayConfigs *xrayConfig) (*conf.Config, error) {
-	outboundConfigs, err := buildOutbondConfigs(uuid, xrayConfigs)
-	if err != nil {
-		return nil, err
-	}
-
-	socksSettings, err := json.Marshal(map[string]any{"udp": true})
-	if err != nil {
-		return nil, err
-	}
-
-	ruleList, err := buildRuleList()
-	if err != nil {
-		return nil, err
-	}
-
-	domainStrategy := "IPIfNonMatch"
-	socksRaw := json.RawMessage(socksSettings)
-
-	return &conf.Config{
-		LogConfig: &conf.LogConfig{
-			LogLevel: "warning",
-		},
-		DNSConfig: &conf.DNSConfig{
-			Servers: []*conf.NameServerConfig{
-				{Address: &conf.Address{Address: net.ParseAddress("8.8.8.8")}},
-				{Address: &conf.Address{Address: net.ParseAddress("1.1.1.1")}},
-			},
-		},
-		InboundConfigs: []conf.InboundDetourConfig{
-			{
-				Tag:      "socks",
-				Protocol: "socks",
-				PortList: &conf.PortList{Range: []conf.PortRange{{From: 10808, To: 10808}}},
-				ListenOn: &conf.Address{Address: net.ParseAddress("127.0.0.1")},
-				Settings: &socksRaw,
-				SniffingConfig: &conf.SniffingConfig{
-					Enabled:      true,
-					DestOverride: conf.NewStringList([]string{"http", "tls", "quic"}),
+func buildConfigs(uuid string, servers []*serverConfig) []config {
+	configs := make([]config, len(servers))
+	for i, srv := range servers {
+		configs[i] = config{
+			Remarks:   srv.remark,
+			Log:       logConfig{LogLevel: "warning"},
+			DNS:       dnsConfig{Servers: []string{"8.8.8.8", "1.1.1.1"}},
+			Inbounds:  buildInbounds(),
+			Outbounds: buildOutbounds(uuid, srv),
+			Routing: routingConfig{
+				DomainStrategy: "IPIfNonMatch",
+				Rules: []routeRule{
+					{Type: "field", OutboundTag: "direct", IP: []string{"geoip:ru", "geoip:private"}},
+					{Type: "field", OutboundTag: "direct", Domain: []string{"geosite:category-ru", "geosite:category-gov-ru"}},
+					{Type: "field", OutboundTag: "proxy", Network: "tcp,udp"},
 				},
 			},
-			{
-				Tag:      "http",
-				Protocol: "http",
-				PortList: &conf.PortList{Range: []conf.PortRange{{From: 10809, To: 10809}}},
-				ListenOn: &conf.Address{Address: net.ParseAddress("127.0.0.1")},
-			},
-		},
-		OutboundConfigs: outboundConfigs,
-		RouterConfig: &conf.RouterConfig{
-			DomainStrategy: &domainStrategy,
-			RuleList:       ruleList,
-		},
-	}, nil
+		}
+	}
+	return configs
 }
 
-func buildOutbondConfigs(uuid string, xrayConfig *xrayConfig) ([]conf.OutboundDetourConfig, error) {
-	network := conf.TransportProtocol("tcp")
-
-	freedomSettings, err := json.Marshal(map[string]any{"domainStrategy": "UseIP"})
-	if err != nil {
-		return nil, err
+func buildInbounds() []inbound {
+	return []inbound{
+		{
+			Tag:      "socks",
+			Protocol: "socks",
+			Port:     10808,
+			Listen:   "127.0.0.1",
+			Settings: &socksSettings{UDP: true},
+			Sniffing: &sniffingConfig{
+				Enabled:      true,
+				DestOverride: []string{"http", "tls", "quic"},
+			},
+		},
+		{
+			Tag:      "http",
+			Protocol: "http",
+			Port:     10809,
+			Listen:   "127.0.0.1",
+		},
 	}
-	freedomRaw := json.RawMessage(freedomSettings)
+}
 
-	userJSON, err := json.Marshal(vless.Account{
-		Id:         uuid,
-		Flow:       "xtls-rprx-vision",
-		Encryption: "none",
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	vlessSettings, err := json.Marshal(conf.VLessOutboundConfig{
-		Vnext: []*conf.VLessOutboundVnext{{
-			Address: &conf.Address{Address: net.ParseAddress(xrayConfig.host)},
-			Port:    443,
-			Users:   []json.RawMessage{userJSON},
-		}},
-	})
-	vlessRaw := json.RawMessage(vlessSettings)
-
-	return []conf.OutboundDetourConfig{
+func buildOutbounds(uuid string, srv *serverConfig) []outbound {
+	return []outbound{
 		{
 			Tag:      "proxy",
 			Protocol: "vless",
-			Settings: &vlessRaw,
-			StreamSetting: &conf.StreamConfig{
-				Network:  &network,
+			Settings: vlessSettings{
+				Vnext: []vlessServer{{
+					Address: srv.host,
+					Port:    443,
+					Users: []vlessUser{{
+						ID:         uuid,
+						Flow:       "xtls-rprx-vision",
+						Encryption: "none",
+					}},
+				}},
+			},
+			StreamSettings: &streamConfig{
+				Network:  "tcp",
 				Security: "reality",
-				REALITYSettings: &conf.REALITYConfig{
+				REALITYSettings: &realityConfig{
 					Fingerprint: "chrome",
-					ServerName:  xrayConfig.realitySni,
-					PublicKey:   xrayConfig.realityPbk,
-					ShortId:     xrayConfig.realitySid,
+					ServerName:  srv.realitySni,
+					PublicKey:   srv.realityPbk,
+					PrivateKey:  srv.realityPbk,
+					ShortId:     srv.realitySid,
 				},
 			},
 		},
 		{
 			Tag:      "direct",
 			Protocol: "freedom",
-			Settings: &freedomRaw,
+			Settings: freedomSettings{DomainStrategy: "UseIP"},
 		},
 		{
 			Tag:      "block",
 			Protocol: "blackhole",
 		},
-	}, nil
-}
-
-func buildRuleList() ([]json.RawMessage, error) {
-	rules := []map[string]any{
-		{"type": "field", "outboundTag": "direct", "ip": []string{"geoip:ru", "geoip:private"}},
-		{"type": "field", "outboundTag": "direct", "domain": []string{"geosite:category-ru", "geosite:category-gov-ru"}},
-		{"type": "field", "outboundTag": "proxy", "network": "tcp,udp"},
 	}
-
-	ruleList := make([]json.RawMessage, len(rules))
-	for i, r := range rules {
-		b, err := json.Marshal(r)
-		if err != nil {
-			return nil, err
-		}
-		ruleList[i] = b
-	}
-	return ruleList, nil
 }
