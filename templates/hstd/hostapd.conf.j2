@@ -3,31 +3,27 @@ driver=nl80211
 
 ssid=TP-Link_0986
 
-# 2GHz band
-hw_mode=g
-channel=1
+hw_mode=a
+channel=36
 
-# Enable 802.11n/ac/ax
+# Enable 802.11n/ac
 ieee80211n=1
 ieee80211ac=1
-ieee80211ax=1
 
-# WPA2/WPA3
 wpa=2
 wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
 wpa_passphrase={{ host.data.wpa_passphrase }}
 
 # 40MHz channel width (conservative, should work)
-ht_capab=[HT40+][SHORT-GI-20][SHORT-GI-40]
+ht_capab=[HT40+][SHORT-GI-20][SHORT-GI-40][LDPC]
 
 # 80MHz for VHT (802.11ac)
-# vht_capab=[MAX-MPDU-11454][RXLDPC][SHORT-GI-80][TX-STBC-2BY1][SU-BEAMFORMEE][MU-BEAMFORMEE]
-# wmm_enabled=1
-# vht_oper_chwidth=1
-# vht_oper_centr_freq_seg0_idx=42
+vht_capab=[MAX-MPDU-11454][RXLDPC][SHORT-GI-80][TX-STBC-2BY1][SU-BEAMFORMEE][MU-BEAMFORMEE][RX-ANTENNA-PATTERN][TX-ANTENNA-PATTERN]
+wmm_enabled=1
+vht_oper_chwidth=1
+vht_oper_centr_freq_seg0_idx=42
 
 # Basic config without advanced HE settings that might conflict
-country_code=RU
+country_code=US
 ieee80211d=1
-ieee80211h=1
