@@ -125,7 +125,7 @@ func saveState(st *State) error {
 	data = append(data, '\n')
 	tmpPath := statePath + ".tmp"
 
-	f, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o660)
+	f, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0660)
 	if err != nil {
 		return fmt.Errorf("create temp state file: %w", err)
 	}

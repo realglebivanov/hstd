@@ -47,11 +47,14 @@ func main() {
 		namedConfigs, err := buildNamedConfigs(secret, xrayConfigs)
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("profile-update-interval", "1")
+
 		if err := json.NewEncoder(w).Encode(namedConfigs); err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
 			log.Printf("encode response: %v", err)
 		}
 	})
