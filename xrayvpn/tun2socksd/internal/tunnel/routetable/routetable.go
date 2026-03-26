@@ -6,6 +6,7 @@ import (
 	"log"
 	"syscall"
 
+	"github.com/realglebivanov/hstd/hstdlib"
 	"github.com/realglebivanov/hstd/tun2socksd/internal/tunnel/link"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
@@ -83,14 +84,12 @@ func buildDefaultRoute(tunAddr *netlink.Addr, tunLink netlink.Link) *netlink.Rou
 	}
 }
 
-const directRouteTable = 100
-
 func buildDirectRoute(defaultGw *netlink.Route) *netlink.Route {
 	return &netlink.Route{
 		Dst:       nil,
 		Gw:        defaultGw.Gw,
 		LinkIndex: defaultGw.LinkIndex,
-		Table:     directRouteTable,
+		Table:     hstdlib.DirectRouteTable,
 		Priority:  0,
 	}
 }
