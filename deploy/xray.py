@@ -1,4 +1,4 @@
-xray_server_addr = "5.252.21.248"
+xray_server_addr = "80.71.157.96"
 xray_proxy_addr = "158.160.19.75"
 
 reality_pbk = "-wQcqdK1CZB9rcW3zeM3W2qx5lDENo9g3YN-jSU-LWI"
