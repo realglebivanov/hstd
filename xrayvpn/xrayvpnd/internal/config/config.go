@@ -56,7 +56,7 @@ func buildCoreConfig(
 					{From: hstdlib.SocksPort, To: hstdlib.SocksPort},
 				}},
 				Settings:       socksSettings,
-				SniffingConfig: &conf.SniffingConfig{Enabled: false},
+				SniffingConfig: &conf.SniffingConfig{Enabled: true},
 			},
 		},
 		OutboundConfigs: []conf.OutboundDetourConfig{
@@ -84,6 +84,16 @@ func buildCoreConfig(
 }
 
 func buildRouterConfig(proxyTag string, ruCIDRs []string) *conf.RouterConfig {
+	bittorrentRule, _ := json.Marshal(map[string]any{
+		"type":        "field",
+		"outboundTag": "direct",
+		"protocol":    []string{"bittorrent"},
+	})
+	ftpRule, _ := json.Marshal(map[string]any{
+		"type":        "field",
+		"outboundTag": "direct",
+		"port":        "20-21",
+	})
 	directRule, _ := json.Marshal(map[string]any{
 		"type":        "field",
 		"inboundTag":  "socks-in",
@@ -105,6 +115,8 @@ func buildRouterConfig(proxyTag string, ruCIDRs []string) *conf.RouterConfig {
 
 	return &conf.RouterConfig{
 		RuleList: []json.RawMessage{
+			bittorrentRule,
+			ftpRule,
 			directRule,
 			dnsRule,
 			proxyRule,
