@@ -5,17 +5,19 @@ import (
 	"fmt"
 
 	"github.com/realglebivanov/hstd/hstdlib"
+	"github.com/realglebivanov/hstd/xrayvpnd/internal/cidrs"
+	"github.com/realglebivanov/hstd/xrayvpnd/internal/geodata"
 	"github.com/xtls/xray-core/common/net"
 	core "github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/infra/conf"
 )
 
 func BuildCoreConfig() (*core.Config, error) {
-	if err := loadGeodata(); err != nil {
+	if err := geodata.Load(); err != nil {
 		return nil, fmt.Errorf("load geodata: %w", err)
 	}
 
-	ruCIDRs, err := loadRuCIDRs()
+	ruCIDRs, err := cidrs.Load()
 	if err != nil {
 		return nil, fmt.Errorf("load ru CIDRS: %w", err)
 	}

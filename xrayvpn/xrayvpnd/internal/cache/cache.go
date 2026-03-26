@@ -1,4 +1,4 @@
-package config
+package cache
 
 import (
 	"errors"
@@ -10,53 +10,53 @@ import (
 
 const cacheTTL = 2 * time.Hour
 
-type cacheState int
+type CacheState int
 
 const (
-	cacheFresh   cacheState = iota // exists, readable, within TTL
-	cacheStale                     // exists, readable, TTL expired
-	cacheMissing                   // file does not exist
-	cacheError                     // I/O error (stat or read)
+	CacheFresh   CacheState = iota // exists, readable, within TTL
+	CacheStale                     // exists, readable, TTL expired
+	CacheMissing                   // file does not exist
+	CacheError                     // I/O error (stat or read)
 )
 
-type cacheResult struct {
-	State cacheState
+type CacheResult struct {
+	State CacheState
 	Data  []byte
 	Err   error
 }
 
-func readCache(name string) *cacheResult {
+func Read(name string) *CacheResult {
 	path := platform.GetAssetLocation(name)
 	info, statErr := os.Stat(path)
 	if statErr != nil {
 		if errors.Is(statErr, os.ErrNotExist) {
-			return &cacheResult{State: cacheMissing}
+			return &CacheResult{State: CacheMissing}
 		}
-		return &cacheResult{State: cacheError, Err: statErr}
+		return &CacheResult{State: CacheError, Err: statErr}
 	}
 
 	data, readErr := os.ReadFile(path)
 	if readErr != nil {
 		if errors.Is(readErr, os.ErrNotExist) {
-			return &cacheResult{State: cacheMissing}
+			return &CacheResult{State: CacheMissing}
 		}
-		return &cacheResult{State: cacheError, Err: readErr}
+		return &CacheResult{State: CacheError, Err: readErr}
 	}
 
 	if time.Since(info.ModTime()) > cacheTTL {
-		return &cacheResult{State: cacheStale, Data: data}
+		return &CacheResult{State: CacheStale, Data: data}
 	}
-	return &cacheResult{State: cacheFresh, Data: data}
+	return &CacheResult{State: CacheFresh, Data: data}
 }
 
-func writeCache(name string, data []byte) error {
-	return writeCacheFrom(name, func(f *os.File) error {
+func Write(name string, data []byte) error {
+	return WriteWith(name, func(f *os.File) error {
 		_, err := f.Write(data)
 		return err
 	})
 }
 
-func writeCacheFrom(name string, write func(*os.File) error) error {
+func WriteWith(name string, write func(*os.File) error) error {
 	dest := platform.GetAssetLocation(name)
 	tmp := dest + ".tmp"
 

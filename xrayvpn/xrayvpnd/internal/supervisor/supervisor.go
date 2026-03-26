@@ -5,7 +5,9 @@ import (
 	"log"
 	"sync"
 
+	"github.com/realglebivanov/hstd/xrayvpnd/internal/cidrs"
 	"github.com/realglebivanov/hstd/xrayvpnd/internal/config"
+	"github.com/realglebivanov/hstd/xrayvpnd/internal/geodata"
 	core "github.com/xtls/xray-core/core"
 	_ "github.com/xtls/xray-core/main/distro/all"
 )
@@ -31,12 +33,14 @@ func (s *supervisor) refresh() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if err := config.RefreshGeodata(); err != nil {
+	if err := geodata.Refresh(); err != nil {
 		return fmt.Errorf("refresh geodata failed: %v", err)
 	}
-	if _, err := config.RefreshRuCIDRs(); err != nil {
-		return fmt.Errorf("refresh CIDRs failed: %v", err)
+
+	if err := cidrs.Refresh(); err != nil {
+		return fmt.Errorf("refresh cidrs failed: %v", err)
 	}
+
 	if s.instance == nil {
 		log.Printf("data refreshed (not running, skipping restart)")
 		return nil
