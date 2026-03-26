@@ -4,18 +4,24 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/realglebivanov/hstd/hstdlib"
 	"github.com/realglebivanov/hstd/tun2socksd/internal/tunnel"
 	"github.com/xjasonlyu/tun2socks/v2/engine"
 )
 
+var mu sync.Mutex
+
 type Supervisor struct {
 	tun *tunnel.Tunnel
 }
 
-func (c *Supervisor) Start() error {
-	if err := c.Stop(); err != nil {
+func (s *Supervisor) Start() error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if err := s.stopLocked(); err != nil {
 		return err
 	}
 
@@ -24,21 +30,27 @@ func (c *Supervisor) Start() error {
 		return err
 	}
 
-	c.tun = tun
+	s.tun = tun
 	log.Printf("tunnel up: %v → %v", tun.DefaultGwAddr(), tun.TunAddr())
 	return nil
 }
 
-func (c *Supervisor) Stop() error {
-	if c.tun == nil {
+func (s *Supervisor) Stop() error {
+	mu.Lock()
+	defer mu.Unlock()
+	return s.stopLocked()
+}
+
+func (s *Supervisor) stopLocked() error {
+	if s.tun == nil {
 		return nil
 	}
 
-	if err := stopEngine(c.tun); err != nil {
+	if err := stopEngine(s.tun); err != nil {
 		return err
 	}
 
-	c.tun = nil
+	s.tun = nil
 	log.Println("tunnel down")
 	return nil
 }

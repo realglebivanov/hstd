@@ -15,11 +15,17 @@ type State struct {
 }
 
 func (s *State) replaceDefaultLinks(serverLink, proxyLink string) error {
+	var staleIds []string
+
 	for _, link := range s.Links {
 		if !link.Rotate {
 			continue
 		}
-		if _, err := s.removeLink(link.ID); err != nil {
+		staleIds = append(staleIds, link.ID)
+	}
+
+	for _, ID := range staleIds {
+		if _, err := s.removeLink(ID); err != nil {
 			return err
 		}
 	}
