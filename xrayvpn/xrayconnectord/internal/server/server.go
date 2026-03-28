@@ -3,7 +3,6 @@ package server
 import (
 	"fmt"
 	"log"
-	"net"
 
 	"github.com/realglebivanov/hstd/hstdlib"
 	"github.com/realglebivanov/hstd/xrayconnectord/internal/client"
@@ -11,11 +10,11 @@ import (
 )
 
 type Server struct {
-	db            *db.DB
-	legacySubPath string
-	rootSecret    []byte
-	adminCIDR     *net.IPNet
-	serverConfigs []*client.ServerConfig
+	db                *db.DB
+	legacySubPath     string
+	rootSecret        []byte
+	adminPasswordHash string
+	serverConfigs     []*client.ServerConfig
 }
 
 func New(rootSecret []byte) (*Server, error) {
@@ -24,16 +23,11 @@ func New(rootSecret []byte) (*Server, error) {
 		return nil, fmt.Errorf("open database: %v", err)
 	}
 
-	_, adminCIDR, err := net.ParseCIDR(hstdlib.MustEnv("ADMIN_CIDR"))
-	if err != nil {
-		return nil, fmt.Errorf("parse ADMIN_CIDR: %v", err)
-	}
-
 	return &Server{
-		db:            db,
-		legacySubPath: hstdlib.MustEnv("SUB_PATH"),
-		rootSecret:    rootSecret,
-		adminCIDR:     adminCIDR,
+		db:                db,
+		legacySubPath:     hstdlib.MustEnv("SUB_PATH"),
+		rootSecret:        rootSecret,
+		adminPasswordHash: hstdlib.MustEnv("ADMIN_PASSWORD_HASH"),
 		serverConfigs: []*client.ServerConfig{{
 			Remark:     "Обычный ВПН",
 			Host:       hstdlib.MustEnv("SERVER_HOST"),

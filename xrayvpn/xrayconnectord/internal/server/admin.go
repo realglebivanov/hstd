@@ -4,21 +4,19 @@ import (
 	"fmt"
 	"html/template"
 	"log"
-	"net"
 	"net/http"
 	"strconv"
 
 	"github.com/realglebivanov/hstd/hstdlib"
 	"github.com/realglebivanov/hstd/xrayconnectord/internal/link"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func (s *Server) HandleAdminReq(w http.ResponseWriter, r *http.Request) {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
-	if !s.adminCIDR.Contains(net.ParseIP(host)) {
-		http.NotFound(w, r)
+	_, pass, ok := r.BasicAuth()
+	if !ok || bcrypt.CompareHashAndPassword([]byte(s.adminPasswordHash), []byte(pass)) != nil {
+		w.Header().Set("WWW-Authenticate", `Basic realm="admin"`)
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 

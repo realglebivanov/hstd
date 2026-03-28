@@ -12,6 +12,6 @@ hosts = [
         "reality_sid": xray.reality_sid,
         "sub_path": passwd.sub_path,
         "proxy_domain": "x.hstd.space",
-        "admin_cidr": "95.31.142.158/32",
+        "admin_password_hash": passwd.admin_password_hash,
     }),
 ]
