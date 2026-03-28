@@ -13,7 +13,9 @@ type Server struct {
 	db                *db.DB
 	legacySubPath     string
 	rootSecret        []byte
+	adminUser         string
 	adminPasswordHash string
+	proxyDomain       string
 	serverConfigs     []*client.ServerConfig
 }
 
@@ -27,7 +29,9 @@ func New(rootSecret []byte) (*Server, error) {
 		db:                db,
 		legacySubPath:     hstdlib.MustEnv("SUB_PATH"),
 		rootSecret:        rootSecret,
+		adminUser:         hstdlib.MustEnv("ADMIN_USER"),
 		adminPasswordHash: hstdlib.MustEnv("ADMIN_PASSWORD_HASH"),
+		proxyDomain:       hstdlib.MustEnv("PROXY_DOMAIN"),
 		serverConfigs: []*client.ServerConfig{{
 			Remark:     "Обычный ВПН",
 			Host:       hstdlib.MustEnv("SERVER_HOST"),

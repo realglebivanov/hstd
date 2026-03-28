@@ -7,13 +7,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-type LinkInfo struct {
-	Index   int
-	Comment string
-	Enabled bool
-	IPs     string
-}
-
 func (d *DB) IsEnabled(l *link.Link) (bool, error) {
 	row := d.db.QueryRow(
 		`SELECT links.enabled FROM links WHERE links.idx = ?`,
@@ -32,28 +25,28 @@ func (d *DB) IsEnabled(l *link.Link) (bool, error) {
 	return isEnabled, nil
 }
 
-func (d *DB) List(count int) ([]LinkInfo, error) {
+func (d *DB) List(count int) ([]link.LinkInfo, error) {
 	rows, err := d.db.Query(`
 		WITH RECURSIVE g(value) AS (
 			SELECT 0
 			UNION ALL
 			SELECT value + 1 FROM g WHERE value < ?-1
 		)
-		SELECT g.value, COALESCE(l.comment, ''), COALESCE(l.enabled, 1), COALESCE(GROUP_CONCAT(i.ip), '')
+		SELECT g.value, COALESCE(l.comment, ''), COALESCE(l.enabled, 1), COALESCE(GROUP_CONCAT(d.name, char(10)), '')
 		FROM g
 		LEFT JOIN links l ON l.idx = g.value
-		LEFT JOIN ips i ON i.link_idx = g.value
+		LEFT JOIN devices d ON d.link_idx = g.value
 		GROUP BY g.value
-		ORDER BY COUNT(i.ip) DESC, g.value ASC
+		ORDER BY COUNT(d.name) DESC, g.value ASC
 	`, count)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var result []LinkInfo
+	var result []link.LinkInfo
 	for rows.Next() {
-		var li LinkInfo
-		if err := rows.Scan(&li.Index, &li.Comment, &li.Enabled, &li.IPs); err != nil {
+		var li link.LinkInfo
+		if err := rows.Scan(&li.Index, &li.Comment, &li.Enabled, &li.Devices); err != nil {
 			return nil, err
 		}
 		result = append(result, li)
@@ -61,7 +54,7 @@ func (d *DB) List(count int) ([]LinkInfo, error) {
 	return result, rows.Err()
 }
 
-func (d *DB) TrackIP(l *link.Link, ip string) error {
+func (d *DB) TrackDevice(l *link.Link, name string) error {
 	_, err := d.db.Exec(
 		`INSERT OR IGNORE INTO links (idx) VALUES (?)`,
 		l.Index,
@@ -71,8 +64,8 @@ func (d *DB) TrackIP(l *link.Link, ip string) error {
 	}
 
 	_, err = d.db.Exec(
-		`INSERT OR IGNORE INTO ips (link_idx, ip) VALUES (?, ?)`,
-		l.Index, ip,
+		`INSERT OR IGNORE INTO devices (link_idx, name) VALUES (?, ?)`,
+		l.Index, name,
 	)
 	return err
 }
