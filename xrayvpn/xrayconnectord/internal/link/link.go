@@ -8,6 +8,13 @@ import (
 	"fmt"
 )
 
+type LinkInfo struct {
+	Index   int
+	Comment string
+	Enabled bool
+	Devices string
+}
+
 type Link struct {
 	Index int
 	Hash  string

@@ -13,19 +13,23 @@ import (
 )
 
 func (s *Server) HandleSubReq(w http.ResponseWriter, r *http.Request) {
-	l, httpErr := s.validate(r)
+	l, httpErr := s.validateSubInput(r)
 	if httpErr != nil {
 		http.Error(w, httpErr.reason, httpErr.code)
 		return
 	}
 
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		host = r.RemoteAddr
+		ip = r.RemoteAddr
+	}
+	device := r.UserAgent() + " @ " + ip
+	if r.UserAgent() == "" {
+		device = ip
 	}
 
-	if err := s.db.TrackIP(l, host); err != nil {
-		log.Printf("track ip: %v", err)
+	if err := s.db.TrackDevice(l, device); err != nil {
+		log.Printf("track device: %v", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -49,8 +53,8 @@ type httpError struct {
 	code   int
 }
 
-func (s *Server) validate(r *http.Request) (*link.Link, *httpError) {
-	l, httpErr := s.buildLink(r)
+func (s *Server) validateSubInput(r *http.Request) (*link.Link, *httpError) {
+	l, httpErr := s.buildSubLink(r)
 	if httpErr != nil {
 		return nil, httpErr
 	}
@@ -67,7 +71,7 @@ func (s *Server) validate(r *http.Request) (*link.Link, *httpError) {
 	return l, nil
 }
 
-func (s *Server) buildLink(r *http.Request) (*link.Link, *httpError) {
+func (s *Server) buildSubLink(r *http.Request) (*link.Link, *httpError) {
 	src := r.URL.Path[1:]
 
 	if src == s.legacySubPath {

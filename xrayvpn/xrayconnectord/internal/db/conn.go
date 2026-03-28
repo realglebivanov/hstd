@@ -19,10 +19,10 @@ const migration = `
 			comment TEXT NOT NULL DEFAULT '',
 			enabled INTEGER NOT NULL DEFAULT 1
 		);
-		CREATE TABLE IF NOT EXISTS ips (
+		CREATE TABLE IF NOT EXISTS devices (
 			link_idx INTEGER NOT NULL REFERENCES links(idx),
-			ip       TEXT NOT NULL,
-			UNIQUE(link_idx, ip)
+			name     TEXT NOT NULL,
+			UNIQUE(link_idx, name)
 		);
 	`
 

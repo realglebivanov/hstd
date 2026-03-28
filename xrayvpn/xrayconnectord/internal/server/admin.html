@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>subsrv admin</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+:root {
+  --bg: #f8f9fa;
+  --surface: #fff;
+  --border: #dee2e6;
+  --muted: #6c757d;
+  --primary: #0d6efd;
+  --primary-hover: #0b5ed7;
+  --danger: #dc3545;
+  --danger-hover: #bb2d3b;
+  --success: #198754;
+  --success-hover: #157347;
+  --radius: 6px;
+}
+body { font-family: system-ui, sans-serif; background: var(--bg); margin: 0; color: #212529; height: 100dvh; display: flex; flex-direction: column; }
+h2 { margin: 0; padding: 1rem; font-size: 1.25rem; text-align: center; background: var(--bg); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.table-wrap { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; padding: 0 1rem 1rem; }
+table { width: 100%; max-width: 800px; margin: 0 auto; border-collapse: collapse; background: var(--surface); border-radius: var(--radius); box-shadow: 0 1px 3px rgba(0,0,0,.08); table-layout: fixed; }
+thead { position: sticky; top: 0; z-index: 1; }
+th { background: #f1f3f5; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: .6rem 1rem; text-align: center; box-shadow: inset 0 -1px 0 var(--border); }
+td { padding: .65rem 1rem; border-bottom: 1px solid var(--border); vertical-align: middle; font-size: .9rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: center; }
+tr:last-child td { border-bottom: none; }
+tr.disabled td { color: var(--muted); }
+.badge { display: inline-block; padding: .2em .55em; border-radius: 99px; font-size: .75rem; font-weight: 600; cursor: pointer; border: none; transition: opacity .15s; }
+.badge:hover { opacity: .8; }
+.badge-on  { background: #d1fae5; color: #065f46; }
+.badge-off { background: #f3f4f6; color: var(--muted); }
+form { display: contents; }
+button {
+  cursor: pointer; border: none; border-radius: var(--radius);
+  padding: .3rem .7rem; font-size: .82rem; font-weight: 500;
+  background: #e9ecef; color: #212529; transition: background .15s;
+}
+button:hover { background: #dee2e6; }
+button.primary { background: var(--primary); color: #fff; }
+button.primary:hover { background: var(--primary-hover); }
+button.danger { background: var(--danger); color: #fff; }
+button.danger:hover { background: var(--danger-hover); }
+button.success { background: var(--success); color: #fff; }
+button.success:hover { background: var(--success-hover); }
+input[type=text] {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: .28rem .55rem; font-size: .82rem; width: 160px; outline: none;
+}
+input[type=text]:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(13,110,253,.2); }
+td[contenteditable] { cursor: text; }
+@media (max-width: 480px) {
+  th, td { padding: .45rem .5rem; }
+  .table-wrap { padding: 0 .5rem .5rem; }
+}
+td[contenteditable]:hover { background: #f8f9fa; }
+td[contenteditable]:focus { outline: none; background: var(--surface); box-shadow: inset 0 0 0 2px var(--primary); border-radius: 3px; white-space: normal; overflow: visible; }
+td[contenteditable].saving { opacity: .5; }
+#qr-overlay, #dev-overlay {
+  display: none; position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,.5); align-items: center; justify-content: center;
+  backdrop-filter: blur(2px); padding: 1rem;
+}
+#qr-overlay.open, #dev-overlay.open { display: flex; }
+#qr-box, #dev-box {
+  background: var(--surface); padding: 1.5rem; border-radius: 10px;
+  text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,.2);
+  max-width: 100%; margin: auto;
+}
+#qr-box img { display: block; margin-bottom: .75rem; max-width: 100%; height: auto; }
+</style>
+</head>
+<body>
+<div id="qr-overlay" onclick="this.classList.remove('open')">
+  <div id="qr-box" onclick="event.stopPropagation()">
+    <img id="qr-img" src="" width="200" height="200">
+    <br>
+    <button class="primary" id="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('qr-url').textContent).then(function(){var b=document.getElementById('copy-btn');b.textContent='Copied!';b.classList.remove('primary');b.classList.add('success');setTimeout(function(){b.textContent='Copy link';b.classList.add('primary');b.classList.remove('success');},1500)})">Copy link</button>
+    <button onclick="document.getElementById('qr-overlay').classList.remove('open')">Close</button>
+    <div id="qr-url" style="display:none"></div>
+  </div>
+</div>
+<div id="dev-overlay" onclick="this.classList.remove('open')">
+  <div id="dev-box" onclick="event.stopPropagation()">
+    <ul id="dev-list" style="text-align:left;margin:0 0 .75rem;padding:0 0 0 1.2rem"></ul>
+    <button onclick="document.getElementById('dev-overlay').classList.remove('open')">Close</button>
+  </div>
+</div>
+<h2>subsrv links</h2>
+{{if not .}}<p style="color:var(--muted);text-align:center">No links tracked yet.</p>{{else}}
+<div class="table-wrap">
+<table>
+<colgroup>
+  <col style="width:3.5rem">
+  <col style="width:4.5rem">
+  <col style="width:30%">
+  <col style="width:4rem">
+  <col>
+</colgroup>
+<thead><tr><th>#</th><th>QR</th><th>Devices</th><th>Status</th><th>Comment</th></tr></thead>
+<tbody>
+{{range .}}
+<tr{{if not .Enabled}} class="disabled"{{end}}>
+  <td>{{.Index}}</td>
+  <td><button class="primary" onclick="document.getElementById('qr-img').src='{{.QR}}';document.getElementById('qr-url').textContent='{{.URL}}';document.getElementById('qr-overlay').classList.add('open');return false">QR</button></td>
+  <td style="font-size:.82rem;color:var(--muted);cursor:pointer" data-devices="{{range $i,$d := .Devices}}{{if $i}}|{{end}}{{$d}}{{end}}" onclick="showDevices(this)">{{if .Devices}}{{len .Devices}} device(s){{else}}no devices yet{{end}}</td>
+  <td>
+    <form method="post">
+      <input type="hidden" name="index" value="{{.Index}}">
+      <input type="hidden" name="action" value="{{if .Enabled}}disable{{else}}enable{{end}}">
+      <button type="submit" class="badge {{if .Enabled}}badge-on{{else}}badge-off{{end}}">{{if .Enabled}}on{{else}}off{{end}}</button>
+    </form>
+  </td>
+  <td contenteditable="true" data-index="{{.Index}}" data-orig="{{.Comment}}" {{if not .Comment}}style="color:var(--muted)"{{end}}>{{if .Comment}}{{.Comment}}{{else}}no comment{{end}}</td>
+</tr>
+{{end}}
+</tbody></table>
+</div>
+{{end}}
+<script>
+function showDevices(td) {
+  if (!td.dataset.devices) return;
+  var devices = td.dataset.devices.split('|');
+  var list = document.getElementById('dev-list');
+  list.innerHTML = devices.map(function(d) { return '<li>' + d + '</li>'; }).join('');
+  document.getElementById('dev-overlay').classList.add('open');
+}
+document.querySelectorAll('td[contenteditable]').forEach(function(td) {
+  td.addEventListener('focus', function() {
+    if (!td.dataset.orig) { td.textContent = ''; td.style.color = ''; }
+  });
+  td.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); td.blur(); }
+    if (e.key === 'Escape') { td.textContent = td.dataset.orig || 'no comment'; td.style.color = td.dataset.orig ? '' : 'var(--muted)'; td.blur(); }
+  });
+  td.addEventListener('blur', function() {
+    var val = td.textContent.trim();
+    if (!val) { td.textContent = 'no comment'; td.style.color = 'var(--muted)'; }
+    if (val === td.dataset.orig) return;
+    td.classList.add('saving');
+    var f = document.createElement('form');
+    f.method = 'post';
+    f.style.display = 'none';
+    [['index', td.dataset.index], ['action', 'comment'], ['comment', val]].forEach(function(p) {
+      var i = document.createElement('input');
+      i.name = p[0]; i.value = p[1];
+      f.appendChild(i);
+    });
+    document.body.appendChild(f);
+    f.submit();
+  });
+});
+</script>
+</body>
+</html>
