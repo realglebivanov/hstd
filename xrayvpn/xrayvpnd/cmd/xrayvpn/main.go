@@ -40,7 +40,6 @@ func main() {
 		newStopCmd(),
 		newRefreshCmd(),
 		newLinkCmds(),
-		newRotateCmd(),
 	)
 
 	if err := root.Execute(); err != nil {

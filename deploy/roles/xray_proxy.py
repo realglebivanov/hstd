@@ -25,7 +25,3 @@ server.shell(
 systemd.service(
     name="Enable certbot renewal timer",
     service="certbot.timer", running=True, enabled=True)
-
-python.call(
-    name="Subscription URL",
-    function=lambda: print(f"\n  https://{host.data.proxy_domain}:8080/{host.data.sub_path}\n"))

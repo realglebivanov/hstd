@@ -21,16 +21,9 @@ systemd.service(
     service="clientrotate.timer", running=True, enabled=True,
     restarted=changed("clientrotate"), daemon_reload=changed("clientrotate"))
 
-_init_cmd = (
-    f"xrayvpn link init --"
-    f" {host.data.rotate_secret}"
-    f" {host.data.xray_server_addr}"
-    f" {host.data.xray_proxy_addr}"
-    f" {host.data.reality_pbk}"
-    f" {host.data.reality_sni}"
-    f" {host.data.reality_sid}"
-)
-server.shell(name="Initialize xrayvpn links", commands=[_init_cmd])
+server.shell(
+    name="Run initial client rotation",
+    commands=["systemctl start clientrotate.service"])
 
 for svc in [
     "nftables", "dnsmasq", "hostapd",
