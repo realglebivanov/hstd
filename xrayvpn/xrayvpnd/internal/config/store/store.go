@@ -82,22 +82,6 @@ func ReplaceDefaultLinks(serverLink, proxyLink string) error {
 	return saveState(st)
 }
 
-func RotateUUID(uuid string) error {
-	mu.Lock()
-	defer mu.Unlock()
-
-	st, err := loadState()
-	if err != nil {
-		return err
-	}
-
-	if err := st.rotateUUID(uuid); err != nil {
-		return err
-	}
-
-	return saveState(st)
-}
-
 func loadState() (*State, error) {
 	data, err := os.ReadFile(statePath)
 	if errors.Is(err, os.ErrNotExist) {

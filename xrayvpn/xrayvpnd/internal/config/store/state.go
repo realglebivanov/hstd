@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"net/url"
 	"strings"
 )
 
@@ -95,29 +94,6 @@ func (s *State) chooseLink(id string) error {
 		}
 	}
 	return fmt.Errorf("link id %q not found", id)
-}
-
-func (s *State) rotateUUID(uuid string) error {
-	for i, l := range s.Links {
-		if !l.Rotate {
-			continue
-		}
-
-		u, err := url.Parse(l.Link)
-		if err != nil {
-			return fmt.Errorf("parse link %q: %w", l.ID, err)
-		}
-		u.User = url.User(uuid)
-		newLink := u.String()
-		newID := hashID(newLink)
-
-		if l.ID == s.ActiveID {
-			s.ActiveID = newID
-		}
-		s.Links[i].Link = newLink
-		s.Links[i].ID = newID
-	}
-	return nil
 }
 
 func hashID(link string) string {
