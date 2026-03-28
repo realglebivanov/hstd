@@ -34,9 +34,7 @@ func (l *Link) Marshal() (string, error) {
 		return "", err
 	}
 
-	hex := hex.EncodeToString(json)
-
-	return hex, nil
+	return hex.EncodeToString(json), nil
 }
 
 func Unmarshal(source string) (*Link, error) {

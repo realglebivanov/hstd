@@ -51,6 +51,7 @@ func (s *Server) adminPage(w http.ResponseWriter) {
 		lr, err := s.buildLinkRow(&l)
 		if err != nil {
 			log.Printf("build link row: %v", err)
+			continue
 		}
 		rows = append(rows, lr)
 	}
