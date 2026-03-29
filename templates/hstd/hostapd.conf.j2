@@ -6,9 +6,10 @@ ssid=TP-Link_0986
 hw_mode=a
 channel=36
 
-# Enable 802.11n/ac
+# Enable 802.11n/ax
 ieee80211n=1
 ieee80211ac=1
+ieee80211ax=1
 
 wpa=2
 wpa_key_mgmt=WPA-PSK
@@ -19,11 +20,15 @@ wpa_passphrase={{ host.data.wpa_passphrase }}
 ht_capab=[HT40+][SHORT-GI-20][SHORT-GI-40][LDPC]
 
 # 80MHz for VHT (802.11ac)
-vht_capab=[MAX-MPDU-11454][RXLDPC][SHORT-GI-80][TX-STBC-2BY1][SU-BEAMFORMEE][MU-BEAMFORMEE][RX-ANTENNA-PATTERN][TX-ANTENNA-PATTERN]
+vht_capab=[MAX-MPDU-11454][RXLDPC][SHORT-GI-80][TX-STBC-2BY1][SU-BEAMFORMER][MU-BEAMFORMER][RX-ANTENNA-PATTERN][TX-ANTENNA-PATTERN]
 wmm_enabled=1
 vht_oper_chwidth=1
 vht_oper_centr_freq_seg0_idx=42
 
+# 80MHz for VHT (802.11ax)
+he_oper_chwidth=1
+he_oper_centr_freq_seg0_idx=42
+
 # Basic config without advanced HE settings that might conflict
-country_code=US
+country_code=RU
 ieee80211d=1
