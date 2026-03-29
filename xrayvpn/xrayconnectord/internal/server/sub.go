@@ -3,7 +3,7 @@ package server
 import (
 	"encoding/base64"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 
@@ -29,7 +29,7 @@ func (s *Server) HandleSubReq(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.db.TrackDevice(l, device); err != nil {
-		log.Printf("track device: %v", err)
+		slog.Error("track device", "err", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -42,7 +42,7 @@ func (s *Server) HandleSubReq(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("profile-title", "base64:"+base64.StdEncoding.EncodeToString([]byte("hstd")))
 
 	if err := json.NewEncoder(w).Encode(configs); err != nil {
-		log.Printf("encode response: %v", err)
+		slog.Error("encode response", "err", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -61,11 +61,11 @@ func (s *Server) validateSubInput(r *http.Request) (*link.Link, *httpError) {
 
 	isEnabled, err := s.db.IsEnabled(l)
 	if err != nil {
-		log.Printf("check link enabled: %v", err)
+		slog.Error("check link enabled", "err", err)
 		return nil, &httpError{"internal error", http.StatusInternalServerError}
 	}
 	if !isEnabled {
-		log.Printf("link disabled: %d", l.Index)
+		slog.Info("link disabled", "index", l.Index)
 		return nil, &httpError{"bad request", http.StatusBadRequest}
 	}
 	return l, nil
@@ -80,7 +80,7 @@ func (s *Server) buildSubLink(r *http.Request) (*link.Link, *httpError) {
 
 	l, err := link.Unmarshal(src)
 	if err != nil {
-		log.Printf("decode input link: %v", err)
+		slog.Warn("decode input link", "err", err)
 		return nil, &httpError{"bad request", http.StatusBadRequest}
 	}
 

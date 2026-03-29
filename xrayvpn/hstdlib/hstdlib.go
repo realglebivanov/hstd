@@ -3,7 +3,7 @@ package hstdlib
 import (
 	"encoding/hex"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"os"
 	"os/user"
@@ -111,7 +111,8 @@ func MustEnvHex(key string) []byte {
 	v := MustEnv(key)
 	b, err := hex.DecodeString(v)
 	if err != nil {
-		log.Fatalf("env var %s must be hex: %v", key, err)
+		slog.Error("env var must be hex", "key", key, "err", err)
+		os.Exit(1)
 	}
 	return b
 }
@@ -119,7 +120,8 @@ func MustEnvHex(key string) []byte {
 func MustEnv(key string) string {
 	v := os.Getenv(key)
 	if v == "" {
-		log.Fatalf("missing required env var %s", key)
+		slog.Error("missing required env var", "key", key)
+		os.Exit(1)
 	}
 	return v
 }

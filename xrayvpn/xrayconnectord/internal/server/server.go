@@ -2,7 +2,7 @@ package server
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/realglebivanov/hstd/hstdlib"
 	"github.com/realglebivanov/hstd/xrayconnectord/internal/client"
@@ -49,6 +49,6 @@ func New(rootSecret []byte) (*Server, error) {
 
 func (s *Server) Close() {
 	if err := s.db.Close(); err != nil {
-		log.Printf("close db: %v", err)
+		slog.Error("close db", "err", err)
 	}
 }

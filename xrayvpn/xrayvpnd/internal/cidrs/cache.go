@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 
 	"github.com/realglebivanov/hstd/xrayvpnd/internal/cache"
@@ -28,7 +28,7 @@ func readOrRefresh(src *source) *readResult {
 	cr := cache.Read(cacheName(src))
 	switch cr.State {
 	case cache.CacheStale:
-		log.Printf("will refresh %s CIDRs in background", src.Name)
+		slog.Info("will refresh CIDRs in background", "src", src.Name)
 		go fetchAndCacheSource(src)
 		fallthrough
 	case cache.CacheFresh:
@@ -69,7 +69,7 @@ func refreshSources(srcs []source) ([]string, error) {
 			cidrs = append(cidrs, r.cidrs...)
 			continue
 		}
-		log.Printf("warning: failed to fetch %s: %v", r.src.Name, r.err)
+		slog.Warn("failed to fetch", "src", r.src.Name, "err", r.err)
 		errs = append(errs, r.err)
 	}
 
@@ -86,10 +86,10 @@ func fetchAndCacheSource(src *source) *sourceResult {
 		return &sourceResult{src: src, cidrs: cidrs, err: err}
 	}
 	if err := cache.Write(cacheName(src), []byte(strings.Join(cidrs, "\n")+"\n")); err != nil {
-		log.Printf("warning: failed to write %s cache: %v", src.Name, err)
+		slog.Warn("failed to write cache", "src", src.Name, "err", err)
 		return &sourceResult{src: src, err: err}
 	}
-	log.Printf("wrote %d CIDRs from %s to cache", len(cidrs), src.Name)
+	slog.Info("wrote CIDRs to cache", "count", len(cidrs), "src", src.Name)
 	return &sourceResult{src: src, cidrs: cidrs}
 }
 

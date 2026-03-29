@@ -1,8 +1,9 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"github.com/realglebivanov/hstd/hstdlib"
@@ -14,7 +15,8 @@ func main() {
 
 	s, err := server.New(rootSecret)
 	if err != nil {
-		log.Fatalf("init server: %v", err)
+		slog.Error("init server", "err", err)
+		os.Exit(1)
 	}
 	defer s.Close()
 
@@ -25,6 +27,9 @@ func main() {
 	certFile := filepath.Join(credsDir, "tls_cert")
 	keyFile := filepath.Join(credsDir, "tls_key")
 
-	log.Println("listening on :8080")
-	log.Fatal(http.ListenAndServeTLS(":8080", certFile, keyFile, nil))
+	slog.Info("listening on :8080")
+	if err := http.ListenAndServeTLS(":8080", certFile, keyFile, nil); err != nil {
+		slog.Error("listen", "err", err)
+		os.Exit(1)
+	}
 }

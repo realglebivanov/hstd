@@ -2,7 +2,7 @@ package link
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/realglebivanov/hstd/hstdlib"
@@ -35,7 +35,7 @@ func SetUp() (*Link, error) {
 }
 
 func await(timeout time.Duration) (netlink.Link, error) {
-	log.Printf("waiting for %s ...", hstdlib.TunDev)
+	slog.Info("waiting for tun dev", "dev", hstdlib.TunDev)
 
 	deadline := time.Now().Add(timeout)
 	for {

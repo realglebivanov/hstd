@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"html/template"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -41,7 +41,7 @@ func (s *Server) HandleAdminReq(w http.ResponseWriter, r *http.Request) {
 func (s *Server) adminPage(w http.ResponseWriter) {
 	links, err := s.db.List(hstdlib.XrayClientCount)
 	if err != nil {
-		log.Printf("admin list: %v", err)
+		slog.Error("admin list", "err", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -50,7 +50,7 @@ func (s *Server) adminPage(w http.ResponseWriter) {
 	for _, l := range links {
 		lr, err := s.buildLinkRow(&l)
 		if err != nil {
-			log.Printf("build link row: %v", err)
+			slog.Error("build link row", "err", err)
 			continue
 		}
 		rows = append(rows, lr)
@@ -58,7 +58,7 @@ func (s *Server) adminPage(w http.ResponseWriter) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := adminTmpl.Execute(w, rows); err != nil {
-		log.Printf("execute admin tpl: %v", err)
+		slog.Error("execute admin tpl", "err", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -89,7 +89,7 @@ func (s *Server) adminAction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		log.Printf("admin action: %v", err)
+		slog.Error("admin action", "err", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}

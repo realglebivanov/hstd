@@ -3,7 +3,7 @@ package supervisor
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
 
 	"github.com/realglebivanov/hstd/hstdlib"
@@ -31,7 +31,7 @@ func (s *Supervisor) Start() error {
 	}
 
 	s.tun = tun
-	log.Printf("tunnel up: %v → %v", tun.DefaultGwAddr(), tun.TunAddr())
+	slog.Info("tunnel up", "gw", tun.DefaultGwAddr(), "tun", tun.TunAddr())
 	return nil
 }
 
@@ -51,7 +51,7 @@ func (s *Supervisor) stopLocked() error {
 	}
 
 	s.tun = nil
-	log.Println("tunnel down")
+	slog.Info("tunnel down")
 	return nil
 }
 

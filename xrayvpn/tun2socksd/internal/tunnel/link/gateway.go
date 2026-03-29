@@ -2,7 +2,7 @@ package link
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 
 	"github.com/realglebivanov/hstd/hstdlib"
@@ -18,7 +18,7 @@ func preserveDefaultGateway() (*netlink.Route, error) {
 		return gw, nil
 	}
 
-	log.Printf("no default gateway in routing table: %v; falling back to file", err)
+	slog.Warn("no default gateway in routing table, falling back to file", "err", err)
 	return load()
 }
 

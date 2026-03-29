@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -29,9 +29,9 @@ func Load() error {
 		cr := cache.Read(f.name)
 		switch cr.State {
 		case cache.CacheFresh:
-			log.Printf("using cached %s", f.name)
+			slog.Info("using cached", "file", f.name)
 		case cache.CacheStale:
-			log.Printf("using stale %s, will refresh in background", f.name)
+			slog.Info("using stale, will refresh in background", "file", f.name)
 			go tryToDownload(f)
 		case cache.CacheMissing:
 			if err := tryToDownload(f); err != nil {
@@ -59,7 +59,7 @@ func Refresh() error {
 
 func tryToDownload(f geodataFile) error {
 	if err := download(httpclient.Default, f); err != nil {
-		log.Printf("download geodata %s: %v", f.url, err)
+		slog.Warn("download geodata failed", "url", f.url, "err", err)
 		if err := download(httpclient.Direct, f); err != nil {
 			return fmt.Errorf("download geodata %s: %v", f.url, err)
 		}
@@ -69,7 +69,7 @@ func tryToDownload(f geodataFile) error {
 }
 
 func download(client *http.Client, f geodataFile) error {
-	log.Printf("downloading %s ...", f.url)
+	slog.Info("downloading", "url", f.url)
 	resp, err := client.Get(f.url)
 	if err != nil {
 		return err
@@ -85,7 +85,7 @@ func download(client *http.Client, f geodataFile) error {
 		if err != nil {
 			return err
 		}
-		log.Printf("wrote %s (%d bytes)", f.Name(), n)
+		slog.Info("wrote", "file", f.Name(), "bytes", n)
 		return nil
 	})
 }

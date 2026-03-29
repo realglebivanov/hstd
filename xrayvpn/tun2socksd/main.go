@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,20 +13,21 @@ import (
 )
 
 func main() {
-	log.SetFlags(log.Ltime)
-
 	if err := hstdlib.CheckCap(unix.CAP_NET_ADMIN); err != nil {
-		log.Fatalf("no CAP_NET_ADMIN capability: %v", err)
+		slog.Error("no CAP_NET_ADMIN capability", "err", err)
+		os.Exit(1)
 	}
 
 	if err := os.WriteFile(hstdlib.Tun2SocksPIDFile, fmt.Appendf(nil, "%d", os.Getpid()), 0644); err != nil {
-		log.Fatalf("write pid file: %v", err)
+		slog.Error("write pid file", "err", err)
+		os.Exit(1)
 	}
 	defer os.Remove(hstdlib.Tun2SocksPIDFile)
 
 	c := &s.Supervisor{}
 	if err := c.Start(); err != nil {
-		log.Fatalf("start: %v", err)
+		slog.Error("start", "err", err)
+		os.Exit(1)
 	}
 
 	handleSignals(c)
@@ -39,19 +40,19 @@ func handleSignals(c *s.Supervisor) {
 	for sig := range sigCh {
 		switch sig {
 		case syscall.SIGUSR2:
-			log.Println("SIGUSR2: (re)starting tunnel ...")
+			slog.Info("SIGUSR2: (re)starting tunnel ...")
 			if err := c.Start(); err != nil {
-				log.Printf("(re)start failed: %v", err)
+				slog.Error("(re)start failed", "err", err)
 			}
 		case syscall.SIGUSR1:
-			log.Println("SIGUSR1: stopping tunnel ...")
+			slog.Info("SIGUSR1: stopping tunnel ...")
 			if err := c.Stop(); err != nil {
-				log.Printf("stop failed: %v", err)
+				slog.Error("stop failed", "err", err)
 			}
 		case syscall.SIGTERM, syscall.SIGINT:
-			log.Println("shutting down ...")
+			slog.Info("shutting down ...")
 			if err := c.Stop(); err != nil {
-				log.Printf("stop failed: %v", err)
+				slog.Error("stop failed", "err", err)
 			}
 			return
 		}

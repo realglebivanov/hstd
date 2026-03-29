@@ -2,7 +2,7 @@ package cidrs
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 )
 
 func Load() ([]string, error) {
@@ -24,7 +24,7 @@ func Load() ([]string, error) {
 	missingCIDRs, err := refreshSources(missingSrcs)
 
 	if err != nil {
-		log.Printf("refresh missing sources: %v", err)
+		slog.Error("refresh missing sources", "err", err)
 		return nil, err
 	}
 
@@ -33,7 +33,7 @@ func Load() ([]string, error) {
 
 func Refresh() error {
 	if _, err := refreshSources(sources); err != nil {
-		log.Printf("refresh cidrs: %v", err)
+		slog.Error("refresh cidrs", "err", err)
 		return err
 	}
 	return nil

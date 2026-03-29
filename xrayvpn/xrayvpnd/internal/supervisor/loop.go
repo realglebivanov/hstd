@@ -3,7 +3,7 @@ package supervisor
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"os"
 	"os/signal"
@@ -31,25 +31,25 @@ func handleSignals(s *supervisor) error {
 	for sig := range sigCh {
 		switch sig {
 		case syscall.SIGUSR2:
-			log.Println("SIGUSR2: (re)starting ...")
+			slog.Info("SIGUSR2: (re)starting ...")
 			if err := s.start(); err != nil {
-				log.Printf("(re)start failed: %v", err)
+				slog.Error("(re)start failed", "err", err)
 			}
 
 		case syscall.SIGUSR1:
-			log.Println("SIGUSR1: stopping ...")
+			slog.Info("SIGUSR1: stopping ...")
 			if err := s.stop(); err != nil {
-				log.Printf("stop failed: %v", err)
+				slog.Error("stop failed", "err", err)
 			}
 
 		case syscall.SIGHUP:
-			log.Println("SIGHUP: refreshing RU CIDRs and geodata ...")
+			slog.Info("SIGHUP: refreshing RU CIDRs and geodata ...")
 			if err := s.refresh(); err != nil {
-				log.Printf("refresh failed: %v", err)
+				slog.Error("refresh failed", "err", err)
 			}
 
 		case syscall.SIGTERM, syscall.SIGINT:
-			log.Println("shutting down ...")
+			slog.Info("shutting down ...")
 			return s.stop()
 		}
 	}

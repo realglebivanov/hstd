@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -55,7 +55,7 @@ func send(proc managedProcess, sig syscall.Signal) error {
 	if err = p.Signal(sig); err != nil {
 		return fmt.Errorf("signal failed: %w", err)
 	}
-	log.Printf("sent to %s pid %d\n", proc.name, p.Pid)
+	slog.Info("sent signal", "proc", proc.name, "pid", p.Pid)
 	return nil
 }
 

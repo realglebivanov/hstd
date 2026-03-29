@@ -3,7 +3,7 @@ package ruleset
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"syscall"
 
@@ -56,7 +56,7 @@ func New() (RuleSet, error) {
 	for i, username := range hstdlib.DirectRouteServices {
 		uid, err := hstdlib.LookupUID(username)
 		if err != nil {
-			log.Printf("skip %s rules: %v", username, err)
+			slog.Warn("skip rules", "user", username, "err", err)
 			continue
 		}
 

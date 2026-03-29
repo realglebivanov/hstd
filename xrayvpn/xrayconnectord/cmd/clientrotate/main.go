@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 
 	"github.com/realglebivanov/hstd/hstdlib"
@@ -14,18 +14,21 @@ import (
 
 func main() {
 	if len(os.Args) != 2 {
-		log.Fatal("usage: clientrotate <secret>")
+		slog.Error("usage: clientrotate <secret>")
+		os.Exit(1)
 	}
 
 	scrt, err := hstdlib.ParseHexSecret(os.Args[1])
 	if err != nil {
-		log.Fatalf("secret must be hex: %v", err)
+		slog.Error("secret must be hex", "err", err)
+		os.Exit(1)
 	}
 	uuids := secret.GenerateClientUUIDs(scrt)
-	log.Printf("rotating client_id: %d clients", len(uuids))
+	slog.Info("rotating client_id", "clients", len(uuids))
 
 	if err := rotate(uuids); err != nil {
-		log.Fatalf("rotate: %v", err)
+		slog.Error("rotate", "err", err)
+		os.Exit(1)
 	}
 }
 
@@ -61,7 +64,7 @@ func rotate(uuids []string) error {
 		return fmt.Errorf("write config: %w", err)
 	}
 
-	log.Printf("updated %s", configPath)
+	slog.Info("updated", "path", configPath)
 	return nil
 }
 

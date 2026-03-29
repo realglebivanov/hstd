@@ -6,7 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	mathbits "math/bits"
 	"net"
 	"net/http"
@@ -32,7 +32,7 @@ var sources = []source{
 func tryToFetchSource(src *source) ([]string, error) {
 	cidrs, err := fetchSource(httpclient.Default, src)
 	if err != nil {
-		log.Printf("fetch source with default client %s: %v", src.Name, err)
+		slog.Warn("fetch source with default client failed", "src", src.Name, "err", err)
 		cidrs, err := fetchSource(httpclient.Direct, src)
 		if err != nil {
 			return nil, fmt.Errorf("fetch source with direct client %s: %v", src.Name, err)
@@ -44,7 +44,7 @@ func tryToFetchSource(src *source) ([]string, error) {
 }
 
 func fetchSource(client *http.Client, src *source) ([]string, error) {
-	log.Printf("fetching RU CIDRs from %s ...", src.Name)
+	slog.Info("fetching RU CIDRs", "src", src.Name)
 
 	resp, err := client.Get(src.URL)
 	if err != nil {
@@ -66,7 +66,7 @@ func fetchSource(client *http.Client, src *source) ([]string, error) {
 		return nil, err
 	}
 
-	log.Printf("fetched %d RU CIDRs from %s", len(cidrs), src.Name)
+	slog.Info("fetched RU CIDRs", "count", len(cidrs), "src", src.Name)
 	return cidrs, nil
 }
 

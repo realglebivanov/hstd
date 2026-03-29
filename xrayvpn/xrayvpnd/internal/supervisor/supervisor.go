@@ -2,7 +2,7 @@ package supervisor
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
 
 	"github.com/realglebivanov/hstd/xrayvpnd/internal/cidrs"
@@ -42,11 +42,11 @@ func (s *supervisor) refresh() error {
 	}
 
 	if s.instance == nil {
-		log.Printf("data refreshed (not running, skipping restart)")
+		slog.Info("data refreshed (not running, skipping restart)")
 		return nil
 	}
 
-	log.Println("data refreshed, restarting with new data ...")
+	slog.Info("data refreshed, restarting with new data ...")
 	return s.startLocked()
 }
 
@@ -60,7 +60,7 @@ func (s *supervisor) startLocked() error {
 		return fmt.Errorf("build xray-core config: %w", err)
 	}
 
-	log.Println("starting xray-core ...")
+	slog.Info("starting xray-core ...")
 	instance, err := core.New(coreConfig)
 	if err != nil {
 		return fmt.Errorf("create xray-core: %w", err)
@@ -71,7 +71,7 @@ func (s *supervisor) startLocked() error {
 	}
 	s.instance = instance
 
-	log.Println("xray-core started")
+	slog.Info("xray-core started")
 	return nil
 }
 
@@ -85,7 +85,7 @@ func (s *supervisor) stopLocked() error {
 	}
 
 	s.instance = nil
-	log.Println("stopped xray-core")
+	slog.Info("stopped xray-core")
 
 	return nil
 }

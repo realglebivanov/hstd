@@ -3,7 +3,7 @@ package routetable
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"syscall"
 
 	"github.com/realglebivanov/hstd/hstdlib"
@@ -59,7 +59,7 @@ func execRouteSteps(steps []routeStep) error {
 		if err != nil && !errors.Is(err, syscall.ESRCH) {
 			return fmt.Errorf("%s: %w", s.desc, err)
 		}
-		log.Printf("%s", s.desc)
+		slog.Info(s.desc)
 	}
 	return nil
 }

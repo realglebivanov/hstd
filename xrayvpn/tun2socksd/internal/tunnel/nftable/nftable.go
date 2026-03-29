@@ -2,7 +2,7 @@ package nftable
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/google/nftables"
 	"github.com/google/nftables/binaryutil"
@@ -54,7 +54,7 @@ func (nft *NfTable) SetUp() error {
 		return fmt.Errorf("nft insert forward rules: %w", err)
 	}
 
-	log.Printf("nft: forward to %s allowed", hstdlib.TunDev)
+	slog.Info("nft: forward allowed", "dev", hstdlib.TunDev)
 	return nil
 }
 
@@ -69,7 +69,7 @@ func (nft *NfTable) TearDown() error {
 	if err := conn.Flush(); err != nil {
 		return fmt.Errorf("nft delete table: %w", err)
 	}
-	log.Printf("nft: table %s removed", nft.table.Name)
+	slog.Info("nft: table removed", "table", nft.table.Name)
 	return nil
 }
 
