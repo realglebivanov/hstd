@@ -4,55 +4,59 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"sync"
 	"log/slog"
 	"net/http"
 	"os"
+	"sync"
 
 	"github.com/realglebivanov/hstd/xrayvpnd/internal/cache"
-	"github.com/realglebivanov/hstd/xrayvpnd/internal/httpclient"
+	"github.com/realglebivanov/hstd/xrayvpnd/internal/dataloader/httpclient"
 )
 
-type geodataFile struct {
-	url  string
-	name string
+type GeoFile struct {
+	Url  string
+	Name string
 }
 
 const baseGeodataUrl = "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/"
 
-var geodataFiles = []geodataFile{
+var geoFiles = []GeoFile{
 	{baseGeodataUrl + "geoip.dat", "geoip.dat"},
 	{baseGeodataUrl + "geosite.dat", "geosite.dat"},
 }
 
-func Load() error {
-	for _, f := range geodataFiles {
-		cr := cache.Read(f.name)
+func Load() (stale []GeoFile, err error) {
+	for _, f := range geoFiles {
+		cr := cache.Read(f.Name)
 		switch cr.State {
 		case cache.CacheFresh:
-			slog.Info("using cached", "file", f.name)
+			slog.Info("using cached", "file", f.Name)
 		case cache.CacheStale:
-			slog.Info("using stale, will refresh in background", "file", f.name)
-			go tryToDownload(f)
+			slog.Info("using stale", "file", f.Name)
+			stale = append(stale, f)
 		case cache.CacheMissing:
 			if err := tryToDownload(f); err != nil {
-				return err
+				return nil, err
 			}
 		case cache.CacheError:
-			return fmt.Errorf("read %s: %w", f.name, cr.Err)
+			return nil, fmt.Errorf("read %s: %w", f.Name, cr.Err)
 		default:
-			return fmt.Errorf("unexpected cache state %d for %s", cr.State, f.name)
+			return nil, fmt.Errorf("unexpected cache state %d for %s", cr.State, f.Name)
 		}
 	}
 
-	return nil
+	return stale, nil
+}
+
+func Download(f GeoFile) error {
+	return tryToDownload(f)
 }
 
 func Refresh() error {
-	errs := make([]error, len(geodataFiles))
+	errs := make([]error, len(geoFiles))
 
 	var wg sync.WaitGroup
-	for i, f := range geodataFiles {
+	for i, f := range geoFiles {
 		wg.Go(func() {
 			errs[i] = tryToDownload(f)
 		})
@@ -62,20 +66,20 @@ func Refresh() error {
 	return errors.Join(errs...)
 }
 
-func tryToDownload(f geodataFile) error {
+func tryToDownload(f GeoFile) error {
 	if err := download(httpclient.Default, f); err != nil {
-		slog.Warn("download geodata failed", "url", f.url, "err", err)
+		slog.Warn("download geodata failed", "url", f.Url, "err", err)
 		if err := download(httpclient.Direct, f); err != nil {
-			return fmt.Errorf("download geodata %s: %w", f.url, err)
+			return fmt.Errorf("download geodata %s: %w", f.Url, err)
 		}
 	}
 
 	return nil
 }
 
-func download(client *http.Client, f geodataFile) error {
-	slog.Info("downloading", "url", f.url)
-	resp, err := client.Get(f.url)
+func download(client *http.Client, f GeoFile) error {
+	slog.Info("downloading", "url", f.Url)
+	resp, err := client.Get(f.Url)
 	if err != nil {
 		return err
 	}
@@ -85,7 +89,7 @@ func download(client *http.Client, f geodataFile) error {
 		return fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
 
-	return cache.WriteWith(f.name, func(f *os.File) error {
+	return cache.WriteWith(f.Name, func(f *os.File) error {
 		n, err := io.Copy(f, resp.Body)
 		if err != nil {
 			return err

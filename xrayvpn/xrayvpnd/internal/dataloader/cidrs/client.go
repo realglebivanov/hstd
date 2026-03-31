@@ -13,15 +13,15 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/realglebivanov/hstd/xrayvpnd/internal/httpclient"
+	"github.com/realglebivanov/hstd/xrayvpnd/internal/dataloader/httpclient"
 )
 
-type source struct {
+type Source struct {
 	Name string
 	URL  string
 }
 
-var sources = []source{
+var sources = []Source{
 	{"ripencc", "https://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-extended-latest"},
 	{"apnic", "https://ftp.apnic.net/stats/apnic/delegated-apnic-extended-latest"},
 	{"arin", "https://ftp.arin.net/pub/stats/arin/delegated-arin-extended-latest"},
@@ -29,7 +29,7 @@ var sources = []source{
 	{"afrinic", "https://ftp.afrinic.net/pub/stats/afrinic/delegated-afrinic-extended-latest"},
 }
 
-func tryToFetchSource(src *source) ([]string, error) {
+func tryToFetchSource(src *Source) ([]string, error) {
 	cidrs, err := fetchSource(httpclient.Default, src)
 	if err != nil {
 		slog.Warn("fetch source with default client failed", "src", src.Name, "err", err)
@@ -43,7 +43,7 @@ func tryToFetchSource(src *source) ([]string, error) {
 	return cidrs, nil
 }
 
-func fetchSource(client *http.Client, src *source) ([]string, error) {
+func fetchSource(client *http.Client, src *Source) ([]string, error) {
 	slog.Info("fetching RU CIDRs", "src", src.Name)
 
 	resp, err := client.Get(src.URL)

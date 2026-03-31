@@ -15,6 +15,7 @@ type readStatus int
 
 const (
 	readOk readStatus = iota
+	readStale
 	readMissing
 	readError
 )
@@ -25,13 +26,16 @@ type readResult struct {
 	err    error
 }
 
-func readOrRefresh(src *source) *readResult {
+func readOrRefresh(src *Source) *readResult {
 	cr := cache.Read(cacheName(src))
 	switch cr.State {
 	case cache.CacheStale:
-		slog.Info("will refresh CIDRs in background", "src", src.Name)
-		go fetchAndCacheSource(src)
-		fallthrough
+		slog.Info("using stale CIDRs", "src", src.Name)
+		cidrs, err := unmarshalCIDRs(cr.Data)
+		if err != nil {
+			return &readResult{status: readError, err: err}
+		}
+		return &readResult{status: readStale, cidrs: cidrs}
 	case cache.CacheFresh:
 		cidrs, err := unmarshalCIDRs(cr.Data)
 		if err != nil {
@@ -48,12 +52,12 @@ func readOrRefresh(src *source) *readResult {
 }
 
 type sourceResult struct {
-	src   *source
+	src   *Source
 	cidrs []string
 	err   error
 }
 
-func refreshSources(srcs []source) ([]string, error) {
+func refreshSources(srcs []Source) ([]string, error) {
 	results := make([]*sourceResult, len(srcs))
 
 	var wg sync.WaitGroup
@@ -75,14 +79,14 @@ func refreshSources(srcs []source) ([]string, error) {
 		errs = append(errs, r.err)
 	}
 
-	if len(errs) != 0 {
+	if len(errs) > 0 {
 		return nil, fmt.Errorf("%d/%d sources failed", len(errs), len(srcs))
 	}
 
 	return cidrs, nil
 }
 
-func fetchAndCacheSource(src *source) *sourceResult {
+func fetchAndCacheSource(src *Source) *sourceResult {
 	cidrs, err := tryToFetchSource(src)
 	if err != nil {
 		return &sourceResult{src: src, cidrs: cidrs, err: err}
@@ -109,6 +113,6 @@ func unmarshalCIDRs(data []byte) ([]string, error) {
 	return cidrs, nil
 }
 
-func cacheName(src *source) string {
+func cacheName(src *Source) string {
 	return "ru_cidrs_" + src.Name + ".txt"
 }

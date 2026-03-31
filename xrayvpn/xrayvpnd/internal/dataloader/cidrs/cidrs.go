@@ -5,30 +5,36 @@ import (
 	"log/slog"
 )
 
-func Load() ([]string, error) {
-	var allCIDRs []string
-	var missingSrcs []source
+func Load() (cidrs []string, stale []Source, err error) {
+	var missingSrcs []Source
 
 	for _, src := range sources {
 		r := readOrRefresh(&src)
 		switch r.status {
 		case readOk:
-			allCIDRs = append(allCIDRs, r.cidrs...)
+			cidrs = append(cidrs, r.cidrs...)
+		case readStale:
+			cidrs = append(cidrs, r.cidrs...)
+			stale = append(stale, src)
 		case readMissing:
 			missingSrcs = append(missingSrcs, src)
 		case readError:
-			return nil, fmt.Errorf("read or cache %s: %w", src.Name, r.err)
+			return nil, nil, fmt.Errorf("read or cache %s: %w", src.Name, r.err)
 		}
 	}
 
 	missingCIDRs, err := refreshSources(missingSrcs)
-
 	if err != nil {
 		slog.Error("refresh missing sources", "err", err)
-		return nil, err
+		return nil, nil, err
 	}
 
-	return dedup(append(allCIDRs, missingCIDRs...)), nil
+	return dedup(append(cidrs, missingCIDRs...)), stale, nil
+}
+
+func RefreshSource(src Source) error {
+	r := fetchAndCacheSource(&src)
+	return r.err
 }
 
 func Refresh() error {

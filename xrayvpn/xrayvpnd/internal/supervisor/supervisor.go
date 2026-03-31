@@ -5,40 +5,41 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/realglebivanov/hstd/xrayvpnd/internal/cidrs"
 	"github.com/realglebivanov/hstd/xrayvpnd/internal/config"
-	"github.com/realglebivanov/hstd/xrayvpnd/internal/geodata"
+	"github.com/realglebivanov/hstd/xrayvpnd/internal/dataloader"
 	core "github.com/xtls/xray-core/core"
 	_ "github.com/xtls/xray-core/main/distro/all"
 )
 
-type supervisor struct {
-	mu       sync.Mutex
-	instance *core.Instance
+type Supervisor struct {
+	mu        sync.Mutex
+	wg        sync.WaitGroup
+	instance  *core.Instance
+	RefreshCh chan struct{}
 }
 
-func (s *supervisor) start() error {
+func New() *Supervisor {
+	return &Supervisor{RefreshCh: make(chan struct{}, 1)}
+}
+
+func (s *Supervisor) Start() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.startLocked()
 }
 
-func (s *supervisor) stop() error {
+func (s *Supervisor) Stop() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.stopLocked()
 }
 
-func (s *supervisor) refresh() error {
+func (s *Supervisor) Refresh() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if err := geodata.Refresh(); err != nil {
-		return fmt.Errorf("refresh geodata failed: %v", err)
-	}
-
-	if err := cidrs.Refresh(); err != nil {
-		return fmt.Errorf("refresh cidrs failed: %v", err)
+	if err := dataloader.RefreshAll(); err != nil {
+		return fmt.Errorf("refresh failed: %v", err)
 	}
 
 	if s.instance == nil {
@@ -50,12 +51,17 @@ func (s *supervisor) refresh() error {
 	return s.startLocked()
 }
 
-func (s *supervisor) startLocked() error {
+func (s *Supervisor) startLocked() error {
 	if err := s.stopLocked(); err != nil {
 		return err
 	}
 
-	coreConfig, err := config.BuildCoreConfig()
+	data, err := dataloader.Load()
+	if err != nil {
+		return fmt.Errorf("load data: %w", err)
+	}
+
+	coreConfig, err := config.BuildCoreConfig(data.RuCIDRs)
 	if err != nil {
 		return fmt.Errorf("build xray-core config: %w", err)
 	}
@@ -72,10 +78,23 @@ func (s *supervisor) startLocked() error {
 	s.instance = instance
 
 	slog.Info("xray-core started")
+
+	if data.Stale.Any() {
+		s.wg.Go(func() {
+			data.Stale.Refresh()
+			select {
+			case s.RefreshCh <- struct{}{}:
+			default:
+			}
+		})
+	}
+
 	return nil
 }
 
-func (s *supervisor) stopLocked() error {
+func (s *Supervisor) stopLocked() error {
+	s.wg.Wait()
+
 	if s.instance == nil {
 		return nil
 	}
