@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 
 	"github.com/realglebivanov/hstd/xrayvpnd/internal/cache"
 )
@@ -53,18 +54,19 @@ type sourceResult struct {
 }
 
 func refreshSources(srcs []source) ([]string, error) {
-	ch := make(chan *sourceResult, len(srcs))
-	var cidrs []string
+	results := make([]*sourceResult, len(srcs))
 
-	for _, src := range srcs {
-		go func(src *source) {
-			ch <- fetchAndCacheSource(src)
-		}(&src)
+	var wg sync.WaitGroup
+	for i, src := range srcs {
+		wg.Go(func() {
+			results[i] = fetchAndCacheSource(&src)
+		})
 	}
+	wg.Wait()
 
+	var cidrs []string
 	var errs []error
-	for range srcs {
-		r := <-ch
+	for _, r := range results {
 		if r.err == nil {
 			cidrs = append(cidrs, r.cidrs...)
 			continue

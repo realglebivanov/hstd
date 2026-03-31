@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"log/slog"
 	"net/http"
 	"os"
@@ -48,11 +49,15 @@ func Load() error {
 }
 
 func Refresh() error {
-	var errs []error
+	errs := make([]error, len(geodataFiles))
 
-	for _, f := range geodataFiles {
-		errs = append(errs, tryToDownload(f))
+	var wg sync.WaitGroup
+	for i, f := range geodataFiles {
+		wg.Go(func() {
+			errs[i] = tryToDownload(f)
+		})
 	}
+	wg.Wait()
 
 	return errors.Join(errs...)
 }
