@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/realglebivanov/hstd/hstdlib"
-	"github.com/realglebivanov/hstd/xrayvpnd/internal"
+	"github.com/realglebivanov/hstd/xrayvpnd/internal/app"
 	"golang.org/x/sys/unix"
 )
 
@@ -23,7 +23,7 @@ func main() {
 
 	defer os.Remove(hstdlib.XrayVpnPIDFile)
 
-	if err := internal.Run(); err != nil {
+	if err := app.Run(); err != nil {
 		slog.Error("fatal", "err", err)
 		os.Exit(1)
 	}
