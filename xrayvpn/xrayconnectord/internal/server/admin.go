@@ -1,7 +1,7 @@
 package server
 
 import (
-	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -9,28 +9,6 @@ import (
 	"github.com/realglebivanov/hstd/xrayconnectord/internal/server/admin/view"
 	"github.com/realglebivanov/hstd/xrayconnectord/internal/server/wsconn"
 )
-
-type wsLinksMsg struct {
-	Type string      `json:"type"`
-	Rows []*view.Row `json:"rows"`
-}
-
-type wsLinkUpdatedMsg struct {
-	Type string    `json:"type"`
-	Row  *view.Row `json:"row"`
-}
-
-type wsErrorMsg struct {
-	Type    string `json:"type"`
-	Message string `json:"message"`
-}
-
-type wsActionReq struct {
-	Type    string  `json:"type"`
-	Index   int     `json:"index"`
-	Comment *string `json:"comment"`
-	Enabled *bool   `json:"enabled"`
-}
 
 func (s *Server) handleAdminWS(w http.ResponseWriter, r *http.Request) {
 	if !s.basicAuth(w, r) {
@@ -55,46 +33,43 @@ func (s *Server) handleAdminWS(w http.ResponseWriter, r *http.Request) {
 	wsc.StartKeepAlive()
 
 	for {
-		msg, err := wsc.ReadMessage()
+		evt, err := wsc.ReadEvent()
+		if evtErr, ok := errors.AsType[*wsconn.EventError](err); ok {
+			slog.Info("bad ws event", "err", err)
+			wsc.WriteEvent(wsconn.ErrorMsg{Type: "error", Message: evtErr.Message})
+			continue
+		}
 		if err != nil {
-			slog.Warn("read ws message", "err", err)
+			slog.Warn("read ws event", "err", err)
 			break
 		}
-		s.handleWSAction(wsc, msg)
+		switch req := evt.(type) {
+		case *wsconn.UpdateLinkReq:
+			s.handleUpdateLink(wsc, req)
+		}
 	}
 }
 
-func (s *Server) handleWSAction(sender *wsconn.WSCconn, msg []byte) {
-	var req wsActionReq
-	if err := json.Unmarshal(msg, &req); err != nil {
-		slog.Info("json", "msg", msg)
-		sender.WriteJSON(wsErrorMsg{Type: "error", Message: "invalid json"})
-		return
-	}
-	if req.Type != "update_link" {
-		sender.WriteJSON(wsErrorMsg{Type: "error", Message: "unknown type"})
-		return
-	}
-
+func (s *Server) handleUpdateLink(wsc *wsconn.WSConn, req *wsconn.UpdateLinkReq) {
 	l, err := s.db.UpdateLink(req.Index, req.Comment, req.Enabled)
 	if err != nil {
 		slog.Error("ws update link", "err", err)
-		sender.WriteJSON(wsErrorMsg{Type: "error", Message: "internal error"})
+		wsc.WriteEvent(wsconn.ErrorMsg{Type: "error", Message: "internal error"})
 		return
 	}
 
 	row, err := s.view.BuildRow(l)
 	if err != nil {
 		slog.Error("ws build row", "err", err)
-		sender.WriteJSON(wsErrorMsg{Type: "error", Message: "internal error"})
+		wsc.WriteEvent(wsconn.ErrorMsg{Type: "error", Message: "internal error"})
 		return
 	}
 
-	sender.WriteJSON(wsLinkUpdatedMsg{Type: "link_updated", Row: row})
-	s.broadcast.Broadcast(row, sender)
+	wsc.WriteEvent(wsconn.LinkUpdatedMsg{Type: "link_updated", Row: row})
+	s.broadcast.Broadcast(row, wsc)
 }
 
-func (s *Server) sendLinks(wsc *wsconn.WSCconn) error {
+func (s *Server) sendLinks(wsc *wsconn.WSConn) error {
 	links, err := s.db.List(hstdlib.XrayClientCount)
 	if err != nil {
 		slog.Error("ws fetch links", "err", err)
@@ -105,7 +80,7 @@ func (s *Server) sendLinks(wsc *wsconn.WSCconn) error {
 		slog.Error("ws build rows", "err", err)
 		return err
 	}
-	if err := wsc.WriteJSON(wsLinksMsg{Type: "links", Rows: rows}); err != nil {
+	if err := wsc.WriteEvent(wsconn.LinksMsg{Type: "links", Rows: rows}); err != nil {
 		slog.Warn("ws write initial links", "err", err)
 		return err
 	}

@@ -1,7 +1,6 @@
 package broadcast
 
 import (
-	"log/slog"
 	"sync"
 
 	"github.com/realglebivanov/hstd/xrayconnectord/internal/server/admin/view"
@@ -10,26 +9,26 @@ import (
 
 type Broadcast struct {
 	mu   sync.Mutex
-	subs map[*wsconn.WSCconn]struct{}
+	subs map[*wsconn.WSConn]struct{}
 }
 
 func New() *Broadcast {
-	return &Broadcast{subs: make(map[*wsconn.WSCconn]struct{})}
+	return &Broadcast{subs: make(map[*wsconn.WSConn]struct{})}
 }
 
-func (s *Broadcast) Add(c *wsconn.WSCconn) {
+func (s *Broadcast) Add(c *wsconn.WSConn) {
 	s.mu.Lock()
 	s.subs[c] = struct{}{}
 	s.mu.Unlock()
 }
 
-func (s *Broadcast) Remove(c *wsconn.WSCconn) {
+func (s *Broadcast) Remove(c *wsconn.WSConn) {
 	s.mu.Lock()
 	delete(s.subs, c)
 	s.mu.Unlock()
 }
 
-func (s *Broadcast) Broadcast(row *view.Row, sender *wsconn.WSCconn) {
+func (s *Broadcast) Broadcast(row *view.Row, sender *wsconn.WSConn) {
 	msg := struct {
 		Type string    `json:"type"`
 		Row  *view.Row `json:"row"`
@@ -41,8 +40,6 @@ func (s *Broadcast) Broadcast(row *view.Row, sender *wsconn.WSCconn) {
 		if c == sender {
 			continue
 		}
-		if err := c.WriteJSON(msg); err != nil {
-			slog.Warn("ws broadcast write", "err", err)
-		}
+		c.WriteEvent(msg)
 	}
 }
