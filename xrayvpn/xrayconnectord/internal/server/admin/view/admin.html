@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>subsrv admin</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+:root {
+  --bg: #f8f9fa;
+  --surface: #fff;
+  --border: #dee2e6;
+  --muted: #6c757d;
+  --primary: #0d6efd;
+  --primary-hover: #0b5ed7;
+  --danger: #dc3545;
+  --danger-hover: #bb2d3b;
+  --success: #198754;
+  --success-hover: #157347;
+  --radius: 6px;
+}
+body { font-family: system-ui, sans-serif; background: var(--bg); margin: 0; color: #212529; height: 100dvh; display: flex; flex-direction: column; }
+#app { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+#app:not(.ready) { visibility: hidden; }
+h2 { margin: 0 0 1.25rem; padding: 1rem; font-size: 1.25rem; text-align: center; background: var(--bg); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.table-wrap { flex: 1; overflow: auto; padding: 0 1rem 1rem; }
+table { width: 100%; max-width: 800px; margin: 0 auto; border-collapse: collapse; background: var(--surface); border-radius: var(--radius); box-shadow: 0 1px 3px rgba(0,0,0,.08); table-layout: fixed; }
+thead { position: sticky; top: 0; z-index: 1; }
+th { background: #f1f3f5; font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: .6rem 1rem; text-align: center; box-shadow: inset 0 -1px 0 var(--border); }
+td { padding: .65rem 1rem; border-bottom: 1px solid var(--border); vertical-align: middle; font-size: .9rem; font-weight: 500; text-align: center; }
+tr:last-child td { border-bottom: none; }
+tr.disabled td { color: var(--muted); }
+col:nth-child(1) { width: 3.5rem; }
+col:nth-child(2) { width: 4.5rem; }
+col:nth-child(3) { width: 30%; }
+col:nth-child(4) { width: 4rem; }
+.badge { display: inline-block; padding: .2em .55em; border-radius: 99px; font-size: .75rem; font-weight: 600; cursor: pointer; border: none; transition: opacity .15s; }
+.badge:hover { opacity: .8; }
+.badge-on  { background: #d1fae5; color: #065f46; }
+.badge-off { background: #f3f4f6; color: var(--muted); }
+button {
+  cursor: pointer; border: none; border-radius: var(--radius);
+  padding: .3rem .7rem; font-size: .82rem; font-weight: 500;
+  background: #e9ecef; color: #212529; transition: background .15s;
+}
+button:hover { background: #dee2e6; }
+button:disabled { cursor: default; }
+button.primary { background: var(--primary); color: #fff; }
+button.primary:hover { background: var(--primary-hover); }
+button.success { background: var(--success); color: #fff; }
+button.success:hover { background: var(--success-hover); }
+td.saving { opacity: .5; }
+td.td-dev { font-size: .82rem; color: var(--muted); }
+td.td-dev.active { cursor: pointer; }
+@media (max-width: 480px) {
+  th, td { padding: .45rem .5rem; }
+  .table-wrap { padding: 0 .5rem .5rem; }
+}
+.comment-span { cursor: text; display: block; word-break: break-word; }
+.comment-span.no-comment { color: var(--muted); }
+.comment-input {
+  background: transparent; border: none; width: 100%;
+  text-align: center; font: inherit; color: inherit; padding: 0;
+  resize: none; field-sizing: content; word-break: break-word;
+}
+.comment-input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--primary); border-radius: 3px; }
+#qr-overlay, #dev-overlay {
+  display: none; position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,.5); align-items: center; justify-content: center;
+  backdrop-filter: blur(2px); padding: 1rem;
+}
+#qr-overlay.open, #dev-overlay.open { display: flex; }
+#qr-box, #dev-box {
+  background: var(--surface); padding: 1.5rem; border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(0,0,0,.2); max-width: 100%; margin: auto;
+}
+#qr-box { text-align: center; }
+#dev-box { display: flex; flex-direction: column; align-items: center; max-height: 80vh; }
+#dev-list { overflow-y: auto; width: 100%; margin-bottom: .75rem; text-align: left; }
+#qr-box img { display: block; max-width: 100%; height: auto; }
+#qr-actions { display: flex; gap: .5rem; justify-content: center; margin-top: .75rem; }
+.empty {
+  margin: auto; text-align: center; color: var(--muted);
+}
+.empty-icon {
+  font-size: 3rem; opacity: .35; margin-bottom: .5rem;
+}
+.empty-text {
+  font-size: 1rem; font-weight: 500;
+}
+.dev-entry { margin-bottom: .5rem; }
+.dev-ip { font-weight: 600; font-size: .88rem; }
+.dev-name { font-size: .8rem; color: var(--muted); padding: .1rem 0 .1rem .75rem; border-left: 2px solid var(--border); }
+#toast {
+  position: fixed; bottom: 1.25rem; left: 50%; transform: translateX(-50%);
+  background: var(--danger); color: #fff; padding: .5rem 1rem;
+  border-radius: var(--radius); font-size: .85rem; pointer-events: none;
+  opacity: 0; transition: opacity .2s;
+}
+#toast.visible { opacity: 1; }
+</style>
+</head>
+<body>
+<h2>subsrv links</h2>
+<div id="app">
+  <div id="toast" :class="{visible: toast}" aria-live="assertive">[[ toast ]]</div>
+  <div id="qr-overlay" :class="{open: qrOpen}" @click.self="closeOverlays">
+    <div id="qr-box">
+      <img :src="activeLink && activeLink.qr" width="260" height="260">
+      <div id="qr-actions">
+        <button :class="copied ? 'success' : 'primary'" :disabled="copied" @click="copyLink">
+          [[ copied ? 'Copied!' : 'Copy link' ]]
+        </button>
+        <button @click="closeOverlays">Close</button>
+      </div>
+    </div>
+  </div>
+  <div id="dev-overlay" :class="{open: devOpen}" @click.self="closeOverlays">
+    <div id="dev-box">
+      <div id="dev-list">
+        <div v-for="ip in activeDevGroups.order" :key="ip" class="dev-entry">
+          <div class="dev-ip">[[ ip ]]</div>
+          <div v-for="name in activeDevGroups.groups[ip]" :key="name" class="dev-name">[[ name ]]</div>
+        </div>
+      </div>
+      <button @click="closeOverlays">Close</button>
+    </div>
+  </div>
+  <div v-if="!sortedLinks.length" class="empty">
+    <div class="empty-icon">&#128279;</div>
+    <div class="empty-text">No links tracked yet</div>
+  </div>
+  <div v-else class="table-wrap">
+    <table>
+      <colgroup><col><col><col><col><col></colgroup>
+      <thead><tr><th>#</th><th>QR</th><th>Devices</th><th>Status</th><th>Comment</th></tr></thead>
+      <tbody>
+        <tr v-for="link in sortedLinks" :key="link.index" :class="{disabled: !link.enabled}">
+          <td>[[ link.index ]]</td>
+          <td><button class="primary" @click="openQr(link)">QR</button></td>
+          <td :class="['td-dev', link.devices.length ? 'active' : '']"
+              @click="link.devices.length && openDevices(link)">
+            [[ link.devices.length ? deviceLegend(link) : 'no devices yet' ]]
+          </td>
+          <td>
+            <button :class="['badge', link.enabled ? 'badge-on' : 'badge-off']" @click="toggleEnabled(link)">
+              [[ link.enabled ? 'on' : 'off' ]]
+            </button>
+          </td>
+          <td :class="{saving: link._saving}">
+            <span v-if="!link._editing"
+                  class="comment-span"
+                  :class="{'no-comment': !link.comment}"
+                  @click="startEdit(link)">[[ link.comment || 'no comment' ]]</span>
+            <textarea v-else
+                      v-model="link._editVal"
+                      class="comment-input"
+                      v-focus
+                      rows="1"
+                      @blur="saveComment(link)"
+                      @keydown.enter.prevent="$event.target.blur()"
+                      @keydown.esc.prevent="cancelEdit(link)"></textarea>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+<script>{{.Vue}}</script>
+<script>
+function groupDevices(devices) {
+  const groups = {}, order = [];
+  devices.forEach(d => {
+    const at = d.lastIndexOf(' @ ');
+    const ip = at >= 0 ? d.slice(at + 3) : d;
+    const name = at >= 0 ? d.slice(0, at) : '';
+    if (!groups[ip]) { groups[ip] = []; order.push(ip); }
+    if (name) groups[ip].push(name);
+  });
+  return {groups, order, total: devices.length};
+}
+function prepareLink(raw) {
+  return {...raw, _editing: false, _editVal: raw.comment, _saving: false, _groups: groupDevices(raw.devices)};
+}
+
+const app = Vue.createApp({
+  delimiters: ['[[', ']]'],
+  created() { this._byIndex = new Map(); },
+  data() {
+    return {
+      sortedLinks: [],
+      qrOpen: false,
+      devOpen: false,
+      activeLink: null,
+      activeDevGroups: {order: [], groups: {}},
+      copied: false,
+      toast: null,
+      _toastTimer: null,
+    };
+  },
+  async mounted() {
+    document.getElementById('app').classList.add('ready');
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') this.closeOverlays(); });
+
+    const ws = new WebSocket(`https://${location.host}/admin/ws`);
+    this._ws = ws;
+
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'links') {
+          for (const row of msg.rows) this.mergeRow(row);
+        } else if (msg.type === 'link_updated') {
+          this.mergeRow(msg.row);
+        } else if (msg.type === 'error') {
+          this.showToast(msg.message);
+        }
+      } catch (e) {
+        this.showToast(e.message)
+      }
+    };
+
+    ws.onclose = () => {
+      this.showToast('Connection lost. Reload to reconnect.');
+    };
+  },
+  methods: {
+    closeOverlays() {
+      this.qrOpen = false;
+      this.devOpen = false;
+      this.copied = false;
+    },
+    openQr(link) {
+      this.activeLink = link;
+      this.qrOpen = true;
+    },
+    async copyLink() {
+      await navigator.clipboard.writeText(this.activeLink.url);
+      this.copied = true;
+      setTimeout(() => { this.copied = false; }, 1500);
+    },
+    deviceLegend(link) {
+      const g = link._groups;
+      return `${g.order.length} IP${g.order.length !== 1 ? 's' : ''} \u00d7 ${g.total} device${g.total !== 1 ? 's' : ''}`;
+    },
+    openDevices(link) {
+      this.activeDevGroups = link._groups;
+      this.devOpen = true;
+    },
+    showToast(msg) {
+      this.toast = msg;
+      clearTimeout(this._toastTimer);
+      this._toastTimer = setTimeout(() => { this.toast = null; }, 3000);
+    },
+    mergeRow(raw) {
+      const incoming = prepareLink(raw);
+      const existing = this._byIndex.get(incoming.index);
+      if (existing && incoming.version < existing.version) return;
+      if (existing) {
+        if (existing._editing) { incoming._editing = existing._editing; incoming._editVal = existing._editVal; }
+        Object.assign(existing, incoming);
+      } else {
+        const reactive = Vue.reactive(incoming);
+        this._byIndex.set(incoming.index, reactive);
+        this.sortedLinks.push(reactive);
+      }
+      this.sortedLinks.sort((a, b) => b.devices.length - a.devices.length || a.index - b.index);
+    },
+    async post(params) {
+      try {
+        const defaultValues = {"type": "update_link", "comment": null, "enabled": null}
+        this._ws.send(JSON.stringify(Object.assign(defaultValues, params)))
+      } catch (e) {
+        this.showToast(e.message);
+      }
+    },
+    async toggleEnabled(link) {
+      await this.post({index: link.index, enabled: !link.enabled});
+    },
+    startEdit(link) {
+      link._editVal = link.comment;
+      link._editing = true;
+    },
+    cancelEdit(link) {
+      link._editVal = link.comment;
+      link._editing = false;
+    },
+    async saveComment(link) {
+      const val = link._editVal.trim();
+      link._editing = false;
+      if (val === link.comment) return;
+      link._saving = true;
+      await this.post({index: link.index, comment: val});
+      link._saving = false;
+    },
+  },
+});
+app.directive('focus', {mounted(el) { el.focus(); }});
+app.mount('#app');
+</script>
+</body>
+</html>

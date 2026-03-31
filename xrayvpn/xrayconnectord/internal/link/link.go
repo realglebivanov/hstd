@@ -10,6 +10,7 @@ import (
 
 type LinkInfo struct {
 	Index   int
+	Version int
 	Comment string
 	Enabled bool
 	Devices string

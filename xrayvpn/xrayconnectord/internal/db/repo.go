@@ -32,12 +32,16 @@ func (d *DB) List(count int) ([]link.LinkInfo, error) {
 			UNION ALL
 			SELECT value + 1 FROM g WHERE value < ?-1
 		)
-		SELECT g.value, COALESCE(l.comment, ''), COALESCE(l.enabled, 1), COALESCE(GROUP_CONCAT(d.name, char(10)), '')
+		SELECT
+			g.value,
+			COALESCE(l.comment, ''),
+			COALESCE(l.enabled, 1),
+			COALESCE(GROUP_CONCAT(d.name, char(10)), ''),
+			COALESCE(l.version, 0)
 		FROM g
 		LEFT JOIN links l ON l.idx = g.value
-		LEFT JOIN devices d ON d.link_idx = g.value
+		LEFT JOIN devices d ON d.link_idx = g.value AND d.last_seen > unixepoch() - 86400
 		GROUP BY g.value
-		ORDER BY COUNT(d.name) DESC, g.value ASC
 	`, count)
 	if err != nil {
 		return nil, err
@@ -46,7 +50,7 @@ func (d *DB) List(count int) ([]link.LinkInfo, error) {
 	var result []link.LinkInfo
 	for rows.Next() {
 		var li link.LinkInfo
-		if err := rows.Scan(&li.Index, &li.Comment, &li.Enabled, &li.Devices); err != nil {
+		if err := rows.Scan(&li.Index, &li.Comment, &li.Enabled, &li.Devices, &li.Version); err != nil {
 			return nil, err
 		}
 		result = append(result, li)
@@ -54,36 +58,74 @@ func (d *DB) List(count int) ([]link.LinkInfo, error) {
 	return result, rows.Err()
 }
 
-func (d *DB) TrackDevice(l *link.Link, name string) error {
-	_, err := d.db.Exec(
-		`INSERT OR IGNORE INTO links (idx) VALUES (?)`,
+func (d *DB) TrackDevice(l *link.Link, name string) (*link.LinkInfo, error) {
+	tx, err := d.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	var li link.LinkInfo
+	row := tx.QueryRow(
+		`INSERT INTO links (idx) VALUES (?)
+		ON CONFLICT(idx) DO UPDATE SET version = version + 1
+		RETURNING idx, comment, enabled, version`,
 		l.Index,
 	)
-	if err != nil {
-		return err
+	if err := row.Scan(&li.Index, &li.Comment, &li.Enabled, &li.Version); err != nil {
+		return nil, err
 	}
 
-	_, err = d.db.Exec(
-		`INSERT OR IGNORE INTO devices (link_idx, name) VALUES (?, ?)`,
+	_, err = tx.Exec(
+		`INSERT INTO devices (link_idx, name) VALUES (?, ?)
+		 ON CONFLICT(link_idx, name) DO UPDATE SET last_seen = unixepoch()`,
 		l.Index, name,
 	)
-	return err
+	if err != nil {
+		return nil, err
+	}
+
+	row = tx.QueryRow(`
+		SELECT COALESCE(GROUP_CONCAT(name, char(10)), '')
+		FROM devices WHERE link_idx = ? AND last_seen > unixepoch() - 86400`,
+		l.Index,
+	)
+	if err := row.Scan(&li.Devices); err != nil {
+		return nil, err
+	}
+
+	return &li, tx.Commit()
 }
 
-func (d *DB) SetComment(index int, comment string) error {
-	_, err := d.db.Exec(
-		`INSERT INTO links (idx, comment) VALUES (?, ?)
-		 ON CONFLICT(idx) DO UPDATE SET comment = excluded.comment`,
-		index, comment,
-	)
-	return err
-}
+func (d *DB) UpdateLink(index int, comment *string, enabled *bool) (*link.LinkInfo, error) {
+	tx, err := d.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
 
-func (d *DB) SetEnabled(index int, enabled bool) error {
-	_, err := d.db.Exec(
-		`INSERT INTO links (idx, enabled) VALUES (?, ?)
-		 ON CONFLICT(idx) DO UPDATE SET enabled = excluded.enabled`,
-		index, enabled,
+	var li link.LinkInfo
+	row := tx.QueryRow(`
+		INSERT INTO links (idx, comment, enabled) VALUES (?, COALESCE(?, ''), COALESCE(?, 1))
+		ON CONFLICT(idx) DO UPDATE SET
+			comment = COALESCE(?, links.comment),
+			enabled = COALESCE(?, links.enabled),
+			version = links.version + 1
+		RETURNING idx, comment, enabled, version`,
+		index, comment, enabled, comment, enabled,
 	)
-	return err
+	if err := row.Scan(&li.Index, &li.Comment, &li.Enabled, &li.Version); err != nil {
+		return nil, err
+	}
+
+	row = tx.QueryRow(`
+		SELECT COALESCE(GROUP_CONCAT(name, char(10)), '')
+		FROM devices WHERE link_idx = ? AND last_seen > unixepoch() - 86400`,
+		index,
+	)
+	if err := row.Scan(&li.Devices); err != nil {
+		return nil, err
+	}
+
+	return &li, tx.Commit()
 }

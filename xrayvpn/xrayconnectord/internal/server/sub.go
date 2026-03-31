@@ -12,7 +12,7 @@ import (
 	"github.com/realglebivanov/hstd/xrayconnectord/internal/link"
 )
 
-func (s *Server) HandleSubReq(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleSubReq(w http.ResponseWriter, r *http.Request) {
 	l, httpErr := s.validateSubInput(r)
 	if httpErr != nil {
 		http.Error(w, httpErr.reason, httpErr.code)
@@ -28,10 +28,18 @@ func (s *Server) HandleSubReq(w http.ResponseWriter, r *http.Request) {
 		device = ip
 	}
 
-	if err := s.db.TrackDevice(l, device); err != nil {
+	li, err := s.db.TrackDevice(l, device)
+	if err != nil {
 		slog.Error("track device", "err", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
+	}
+
+	row, err := s.view.BuildRow(li)
+	if err != nil {
+		slog.Error("build row for broadcast", "err", err)
+	} else {
+		s.broadcast.Broadcast(row, nil)
 	}
 
 	uuid := secret.GenerateClientUUID(l.Index, s.rootSecret)

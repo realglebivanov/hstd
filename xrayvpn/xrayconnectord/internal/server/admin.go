@@ -1,135 +1,127 @@
 package server
 
 import (
-	_ "embed"
-	"encoding/base64"
-	"fmt"
-	"html/template"
+	"encoding/json"
 	"log/slog"
 	"net/http"
-	"strconv"
-	"strings"
 
 	"github.com/realglebivanov/hstd/hstdlib"
-	"github.com/realglebivanov/hstd/xrayconnectord/internal/link"
-	qrcode "github.com/skip2/go-qrcode"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/realglebivanov/hstd/xrayconnectord/internal/server/admin/view"
+	"github.com/realglebivanov/hstd/xrayconnectord/internal/server/wsconn"
 )
 
-//go:embed admin.html
-var adminTmplSrc string
-var adminTmpl = template.Must(template.New("admin").Parse(adminTmplSrc))
+type wsLinksMsg struct {
+	Type string      `json:"type"`
+	Rows []*view.Row `json:"rows"`
+}
 
-func (s *Server) HandleAdminReq(w http.ResponseWriter, r *http.Request) {
-	user, pass, ok := r.BasicAuth()
-	if !ok || user != s.adminUser || bcrypt.CompareHashAndPassword([]byte(s.adminPasswordHash), []byte(pass)) != nil {
+type wsLinkUpdatedMsg struct {
+	Type string    `json:"type"`
+	Row  *view.Row `json:"row"`
+}
+
+type wsErrorMsg struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
+}
+
+type wsActionReq struct {
+	Type    string  `json:"type"`
+	Index   int     `json:"index"`
+	Comment *string `json:"comment"`
+	Enabled *bool   `json:"enabled"`
+}
+
+func (s *Server) handleAdminWS(w http.ResponseWriter, r *http.Request) {
+	if !s.basicAuth(w, r) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	wsc, err := wsconn.Upgrade(w, r)
+	if err != nil {
+		slog.Warn("ws upgrade", "err", err)
+		return
+	}
+	defer wsc.Close()
+	s.broadcast.Add(wsc)
+	defer s.broadcast.Remove(wsc)
+
+	if err := s.sendLinks(wsc); err != nil {
+		slog.Error("send links", "err", err)
+		return
+	}
+
+	wsc.StartKeepAlive()
+
+	for {
+		msg, err := wsc.ReadMessage()
+		if err != nil {
+			slog.Warn("read ws message", "err", err)
+			break
+		}
+		s.handleWSAction(wsc, msg)
+	}
+}
+
+func (s *Server) handleWSAction(sender *wsconn.WSCconn, msg []byte) {
+	var req wsActionReq
+	if err := json.Unmarshal(msg, &req); err != nil {
+		slog.Info("json", "msg", msg)
+		sender.WriteJSON(wsErrorMsg{Type: "error", Message: "invalid json"})
+		return
+	}
+	if req.Type != "update_link" {
+		sender.WriteJSON(wsErrorMsg{Type: "error", Message: "unknown type"})
+		return
+	}
+
+	l, err := s.db.UpdateLink(req.Index, req.Comment, req.Enabled)
+	if err != nil {
+		slog.Error("ws update link", "err", err)
+		sender.WriteJSON(wsErrorMsg{Type: "error", Message: "internal error"})
+		return
+	}
+
+	row, err := s.view.BuildRow(l)
+	if err != nil {
+		slog.Error("ws build row", "err", err)
+		sender.WriteJSON(wsErrorMsg{Type: "error", Message: "internal error"})
+		return
+	}
+
+	sender.WriteJSON(wsLinkUpdatedMsg{Type: "link_updated", Row: row})
+	s.broadcast.Broadcast(row, sender)
+}
+
+func (s *Server) sendLinks(wsc *wsconn.WSCconn) error {
+	links, err := s.db.List(hstdlib.XrayClientCount)
+	if err != nil {
+		slog.Error("ws fetch links", "err", err)
+		return err
+	}
+	rows, err := s.view.BuildRows(links)
+	if err != nil {
+		slog.Error("ws build rows", "err", err)
+		return err
+	}
+	if err := wsc.WriteJSON(wsLinksMsg{Type: "links", Rows: rows}); err != nil {
+		slog.Warn("ws write initial links", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (s *Server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
+	if !s.basicAuth(w, r) {
 		w.Header().Set("WWW-Authenticate", `Basic realm="admin"`)
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	switch r.Method {
-	case http.MethodGet:
-		s.adminPage(w)
-	case http.MethodPost:
-		s.adminAction(w, r)
-	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-	}
-}
-
-func (s *Server) adminPage(w http.ResponseWriter) {
-	links, err := s.db.List(hstdlib.XrayClientCount)
-	if err != nil {
-		slog.Error("admin list", "err", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
-	var rows []*linkRow
-	for _, l := range links {
-		lr, err := s.buildLinkRow(&l)
-		if err != nil {
-			slog.Error("build link row", "err", err)
-			continue
-		}
-		rows = append(rows, lr)
-	}
-
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := adminTmpl.Execute(w, rows); err != nil {
+	if err := view.AdminTmpl.Execute(w, s.view.BuildHTMLContext()); err != nil {
 		slog.Error("execute admin tpl", "err", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
 	}
-}
-
-func (s *Server) adminAction(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad form", http.StatusBadRequest)
-		return
-	}
-
-	idx, err := strconv.Atoi(r.FormValue("index"))
-	if err != nil {
-		http.Error(w, "bad index", http.StatusBadRequest)
-		return
-	}
-
-	switch r.FormValue("action") {
-	case "enable":
-		err = s.db.SetEnabled(idx, true)
-	case "disable":
-		err = s.db.SetEnabled(idx, false)
-	case "comment":
-		err = s.db.SetComment(idx, r.FormValue("comment"))
-	default:
-		http.Error(w, "unknown action", http.StatusBadRequest)
-		return
-	}
-
-	if err != nil {
-		slog.Error("admin action", "err", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
-	http.Redirect(w, r, "/admin/", http.StatusSeeOther)
-}
-
-type linkRow struct {
-	Index   int
-	URL     string
-	QR      template.URL
-	Devices []string
-	Enabled bool
-	Comment string
-}
-
-func (s *Server) buildLinkRow(l *link.LinkInfo) (*linkRow, error) {
-	hex, err := link.New(l.Index, s.rootSecret).Marshal()
-	if err != nil {
-		return nil, fmt.Errorf("admin marshal link %d: %v", l.Index, err)
-	}
-
-	url := fmt.Sprintf("https://%s:8080/%s", s.proxyDomain, hex)
-	png, err := qrcode.Encode(url, qrcode.Highest, 200)
-	if err != nil {
-		return nil, fmt.Errorf("admin qr link %d: %v", l.Index, err)
-	}
-	qr := template.URL("data:image/png;base64," + base64.StdEncoding.EncodeToString(png))
-
-	var devices []string
-	if l.Devices != "" {
-		devices = strings.Split(l.Devices, "\n")
-	}
-
-	return &linkRow{
-		Index:   l.Index,
-		URL:     url,
-		QR:      qr,
-		Devices: devices,
-		Enabled: l.Enabled,
-		Comment: l.Comment,
-	}, nil
 }

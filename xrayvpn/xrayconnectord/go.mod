@@ -3,12 +3,15 @@ module github.com/realglebivanov/hstd/xrayconnectord
 go 1.26.1
 
 require (
+	github.com/gorilla/sessions v1.4.0
 	github.com/realglebivanov/hstd/hstdlib v0.0.0
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/xtls/xray-core v1.260206.0
 	golang.org/x/crypto v0.49.0
 	modernc.org/sqlite v1.47.0
 )
+
+require github.com/gorilla/securecookie v1.1.2 // indirect
 
 require (
 	github.com/andybalholm/brotli v1.0.6 // indirect
@@ -17,7 +20,8 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
+	// indirect
+	github.com/gorilla/websocket v1.5.3
 	github.com/juju/ratelimit v1.0.2 // indirect
 	github.com/klauspost/compress v1.17.4 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.12 // indirect

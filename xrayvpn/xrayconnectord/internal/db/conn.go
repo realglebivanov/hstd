@@ -17,11 +17,13 @@ const migration = `
 		CREATE TABLE IF NOT EXISTS links (
 			idx     INTEGER PRIMARY KEY,
 			comment TEXT NOT NULL DEFAULT '',
-			enabled INTEGER NOT NULL DEFAULT 1
+			enabled INTEGER NOT NULL DEFAULT 1,
+			version INTEGER NOT NULL DEFAULT 0
 		);
 		CREATE TABLE IF NOT EXISTS devices (
-			link_idx INTEGER NOT NULL REFERENCES links(idx),
-			name     TEXT NOT NULL,
+			link_idx  INTEGER NOT NULL REFERENCES links(idx),
+			name      TEXT NOT NULL,
+			last_seen INTEGER NOT NULL DEFAULT (unixepoch()),
 			UNIQUE(link_idx, name)
 		);
 	`
