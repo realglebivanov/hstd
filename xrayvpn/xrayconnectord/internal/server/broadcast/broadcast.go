@@ -16,38 +16,38 @@ func New() *Broadcast {
 	return &Broadcast{subs: make(map[*wsconn.WSConn]struct{})}
 }
 
-func (s *Broadcast) Add(c *wsconn.WSConn) {
-	s.mu.Lock()
-	s.subs[c] = struct{}{}
-	s.mu.Unlock()
+func (b *Broadcast) Add(c *wsconn.WSConn) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.subs[c] = struct{}{}
 }
 
-func (s *Broadcast) Remove(c *wsconn.WSConn) {
-	s.mu.Lock()
-	delete(s.subs, c)
-	s.mu.Unlock()
+func (b *Broadcast) Remove(c *wsconn.WSConn) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	delete(b.subs, c)
 }
 
-func (s *Broadcast) Close() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for c := range s.subs {
+func (b *Broadcast) Close() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for c := range b.subs {
 		c.Close()
 	}
 }
 
-func (s *Broadcast) Broadcast(row *view.Row, sender *wsconn.WSConn) {
+func (b *Broadcast) Broadcast(row *view.Row, sender *wsconn.WSConn) {
 	msg := struct {
 		Type string    `json:"type"`
 		Row  *view.Row `json:"row"`
 	}{"link_updated", row}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for c := range s.subs {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for c := range b.subs {
 		if c == sender {
 			continue
 		}
-		c.WriteEvent(msg)
+		c.Send(msg)
 	}
 }

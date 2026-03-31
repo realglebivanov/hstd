@@ -80,6 +80,7 @@ func (s *Server) Start() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /admin/ws", s.handleAdminWS)
 	mux.HandleFunc("GET /admin/", s.handleAdminPage)
+	mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) { http.Error(w, "", http.StatusNotFound) })
 	mux.HandleFunc("GET /{link}", s.handleSubReq)
 
 	credsDir := hstdlib.MustEnv("CREDENTIALS_DIRECTORY")
