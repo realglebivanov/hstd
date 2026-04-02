@@ -66,6 +66,24 @@ type streamConfig struct {
 	Network         string         `json:"network"`
 	Security        string         `json:"security"`
 	REALITYSettings *realityConfig `json:"realitySettings,omitempty"`
+	TLSSettings     *tlsConfig     `json:"tlsSettings,omitempty"`
+	XHTTPSettings   *xhttpConfig   `json:"xhttpSettings,omitempty"`
+}
+
+type tlsConfig struct {
+	ServerName string `json:"serverName"`
+}
+
+type xhttpConfig struct {
+	Path              string `json:"path"`
+	XPaddingBytes     string `json:"xPaddingBytes,omitempty"`
+	XPaddingObfsMode  bool   `json:"xPaddingObfsMode,omitempty"`
+	XPaddingPlacement string `json:"xPaddingPlacement,omitempty"`
+	XPaddingKey       string `json:"xPaddingKey,omitempty"`
+	Mode              string `json:"mode,omitempty"`
+	UplinkHTTPMethod  string `json:"uplinkHTTPMethod,omitempty"`
+	NoGRPCHeader      bool   `json:"noGRPCHeader,omitempty"`
+	NoSSEHeader       bool   `json:"noSSEHeader,omitempty"`
 }
 
 type realityConfig struct {
@@ -96,6 +114,7 @@ type ServerConfig struct {
 	RealityPbk string
 	RealitySni string
 	RealitySid string
+	XHTTPPath  string
 }
 
 func BuildConfigs(clientID string, servers []*ServerConfig) []config {
@@ -110,6 +129,7 @@ func BuildConfigs(clientID string, servers []*ServerConfig) []config {
 			Routing: routingConfig{
 				DomainStrategy: "IPIfNonMatch",
 				Rules: []routeRule{
+					{Type: "field", OutboundTag: "proxy", Domain: []string{"domain:yonote.ru"}},
 					{Type: "field", OutboundTag: "direct", IP: []string{"geoip:ru", "geoip:private"}},
 					{Type: "field", OutboundTag: "direct", Domain: []string{"geosite:category-ru", "geosite:category-gov-ru"}},
 					{Type: "field", OutboundTag: "proxy", Network: "tcp,udp"},
@@ -138,38 +158,17 @@ func buildInbounds() []inbound {
 			Protocol: "http",
 			Port:     10809,
 			Listen:   "127.0.0.1",
+			Sniffing: &sniffingConfig{
+				Enabled:      true,
+				DestOverride: []string{"http", "tls", "quic"},
+			},
 		},
 	}
 }
 
 func buildOutbounds(clientID string, srv *ServerConfig) []outbound {
 	return []outbound{
-		{
-			Tag:      "proxy",
-			Protocol: "vless",
-			Settings: vlessSettings{
-				Vnext: []vlessServer{{
-					Address: srv.Host,
-					Port:    443,
-					Users: []vlessUser{{
-						ID:         clientID,
-						Flow:       "xtls-rprx-vision",
-						Encryption: "none",
-					}},
-				}},
-			},
-			StreamSettings: &streamConfig{
-				Network:  "tcp",
-				Security: "reality",
-				REALITYSettings: &realityConfig{
-					Fingerprint: "chrome",
-					ServerName:  srv.RealitySni,
-					PublicKey:   srv.RealityPbk,
-					PrivateKey:  srv.RealityPbk,
-					ShortId:     srv.RealitySid,
-				},
-			},
-		},
+		buildProxyOutbound(clientID, srv),
 		{
 			Tag:      "direct",
 			Protocol: "freedom",
@@ -178,6 +177,77 @@ func buildOutbounds(clientID string, srv *ServerConfig) []outbound {
 		{
 			Tag:      "block",
 			Protocol: "blackhole",
+		},
+	}
+}
+
+func buildProxyOutbound(clientID string, srv *ServerConfig) outbound {
+	if srv.XHTTPPath != "" {
+		return buildXHTTPOutbound(clientID, srv)
+	}
+	return buildRealityOutbound(clientID, srv)
+}
+
+func buildRealityOutbound(clientID string, srv *ServerConfig) outbound {
+	return outbound{
+		Tag:      "proxy",
+		Protocol: "vless",
+		Settings: vlessSettings{
+			Vnext: []vlessServer{{
+				Address: srv.Host,
+				Port:    443,
+				Users: []vlessUser{{
+					ID:         clientID,
+					Flow:       "xtls-rprx-vision",
+					Encryption: "none",
+				}},
+			}},
+		},
+		StreamSettings: &streamConfig{
+			Network:  "tcp",
+			Security: "reality",
+			REALITYSettings: &realityConfig{
+				Fingerprint: "chrome",
+				ServerName:  srv.RealitySni,
+				PublicKey:   srv.RealityPbk,
+				PrivateKey:  srv.RealityPbk,
+				ShortId:     srv.RealitySid,
+			},
+		},
+	}
+}
+
+func buildXHTTPOutbound(clientID string, srv *ServerConfig) outbound {
+	return outbound{
+		Tag:      "proxy",
+		Protocol: "vless",
+		Settings: vlessSettings{
+			Vnext: []vlessServer{{
+				Address: srv.Host,
+				Port:    443,
+				Users: []vlessUser{{
+					ID:         clientID,
+					Encryption: "none",
+				}},
+			}},
+		},
+		StreamSettings: &streamConfig{
+			Network:  "xhttp",
+			Security: "tls",
+			TLSSettings: &tlsConfig{
+				ServerName: srv.Host,
+			},
+			XHTTPSettings: &xhttpConfig{
+				Path:              srv.XHTTPPath,
+				XPaddingBytes:     "10-100",
+				XPaddingObfsMode:  true,
+				XPaddingPlacement: "query",
+				XPaddingKey:       "q",
+				Mode:              "packet-up",
+				UplinkHTTPMethod:  "PUT",
+				NoGRPCHeader:      true,
+				NoSSEHeader:       true,
+			},
 		},
 	}
 }

@@ -27,7 +27,7 @@ func AddLink(link string, rotate bool) error {
 		return err
 	}
 
-	if err := st.addLink(link, rotate); err != nil {
+	if _, err := st.addLink(link, rotate); err != nil {
 		return err
 	}
 

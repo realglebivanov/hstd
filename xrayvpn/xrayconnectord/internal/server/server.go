@@ -69,11 +69,15 @@ func New(rootSecret []byte) (*Server, error) {
 			RealitySni: hstdlib.MustEnv("REALITY_SNI"),
 			RealitySid: hstdlib.MustEnv("REALITY_SID"),
 		}, {
-			Remark:     "Обход белых списков",
+			Remark:     "Обход белых списков(tcp, reality)",
 			Host:       hstdlib.MustEnv("PROXY_HOST"),
 			RealityPbk: hstdlib.MustEnv("REALITY_PBK"),
 			RealitySni: hstdlib.MustEnv("REALITY_SNI"),
 			RealitySid: hstdlib.MustEnv("REALITY_SID"),
+		}, {
+			Remark:    "Обход белых списков(xhttp, tls)",
+			Host:      hstdlib.MustEnv("XHTTP_CDN_DOMAIN"),
+			XHTTPPath: hstdlib.MustEnv("XHTTP_PATH"),
 		}}}, nil
 }
 

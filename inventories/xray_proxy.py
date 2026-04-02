@@ -14,5 +14,7 @@ hosts = [
         "proxy_domain": "x.hstd.space",
         "admin_user": passwd.admin_user,
         "admin_password_hash": passwd.admin_password_hash,
+        "xhttp_cdn_domain": xray.xhttp_cdn_domain,
+        "xhttp_path": xray.xhttp_path,
     }),
 ]

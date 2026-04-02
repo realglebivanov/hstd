@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -14,42 +15,39 @@ type State struct {
 }
 
 func (s *State) replaceDefaultLinks(serverLink, proxyLink string) error {
-	var staleIds []string
+	s.Links = slices.DeleteFunc(s.Links, func(l Link) bool {
+		return l.Rotate
+	})
 
-	for _, link := range s.Links {
-		if !link.Rotate {
-			continue
-		}
-		staleIds = append(staleIds, link.ID)
+	activeID, pErr := s.addLink(proxyLink, true)
+	_, sErr := s.addLink(serverLink, true)
+
+	if err := errors.Join(pErr, sErr); err != nil {
+		return err
 	}
 
-	for _, ID := range staleIds {
-		if _, err := s.removeLink(ID); err != nil {
-			return err
-		}
-	}
+	s.ActiveID = activeID
 
-	return errors.Join(s.addLink(proxyLink, true), s.addLink(serverLink, true))
+	return nil
 }
 
-func (s *State) addLink(link string, rotate bool) error {
+func (s *State) addLink(link string, rotate bool) (string, error) {
 	link = strings.TrimSpace(link)
 
 	if err := validateLink(link); err != nil {
-		return fmt.Errorf("invalid link: %v", err)
+		return "", fmt.Errorf("invalid link: %v", err)
 	}
 
 	for _, existing := range s.Links {
 		if existing.Link == link {
-			return fmt.Errorf("link already exists")
+			return "", fmt.Errorf("link already exists")
 		}
 	}
 
 	id := hashID(link)
-	s.ActiveID = id
 	s.Links = append(s.Links, Link{ID: id, Link: link, Rotate: rotate})
 
-	return nil
+	return id, nil
 }
 
 func (s *State) removeLink(id string) (bool, error) {

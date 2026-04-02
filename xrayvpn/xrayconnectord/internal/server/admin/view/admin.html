@@ -250,7 +250,7 @@ const app = Vue.createApp({
   },
   methods: {
     connectWS() {
-      const ws = new WebSocket(`https://${location.host}/admin/ws`);
+      const ws = new WebSocket(`wss://${location.host}/admin/ws`);
       this._ws = ws;
       ws.onmessage = (e) => {
         try {

@@ -17,7 +17,7 @@ func newLinkCmds() *cobra.Command {
 	}
 	addCmd := &cobra.Command{
 		Use:   "add <url>",
-		Short: "Add a VLESS link and activate it",
+		Short: "Add a VLESS link",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rotate, _ := cmd.Flags().GetBool("rotate")

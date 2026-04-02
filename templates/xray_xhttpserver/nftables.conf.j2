@@ -1,0 +1,37 @@
+#!/usr/sbin/nft -f
+
+flush ruleset
+
+table inet filter {
+    chain input {
+        type filter hook input priority filter; policy drop;
+
+        # Allow loopback
+        iifname "lo" counter accept
+
+        # Allow established/related connections
+        ct state established,related counter accept
+
+        # Allow ICMP
+        ip protocol icmp counter accept
+        ip6 nexthdr icmpv6 counter accept
+
+        # SSH
+        tcp dport 22 counter accept
+
+        # VLESS-XHTTP (xray) + HTTP (ACME)
+        tcp dport { 80, 443 } counter accept
+
+        # Log and drop everything else
+        counter log prefix "INPUT DROP: " drop
+    }
+
+    chain forward {
+        type filter hook forward priority filter; policy drop;
+    }
+
+    chain output {
+        type filter hook output priority filter; policy accept;
+        counter
+    }
+}

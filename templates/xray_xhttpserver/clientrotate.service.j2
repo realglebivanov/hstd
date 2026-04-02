@@ -3,5 +3,5 @@ Description=Rotate xray client UUID
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/clientrotate {{ host.data.rotate_secret }} xtls-rprx-vision
+ExecStart=/usr/local/bin/clientrotate {{ host.data.rotate_secret }}
 ExecStartPost=/bin/systemctl restart xray
