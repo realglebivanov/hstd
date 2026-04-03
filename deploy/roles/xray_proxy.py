@@ -3,8 +3,8 @@ from pyinfra import host, local
 from deploy.triggers import changed
 from os import path
 
-local.include(filename=path.join("tasks", "xray_proxy", "packages.py"))
-local.include(filename=path.join("tasks", "xray_proxy", "configs.py"))
+local.include(filename=path.join("deploy", "tasks", "xray_proxy", "packages.py"))
+local.include(filename=path.join("deploy", "tasks", "xray_proxy", "configs.py"))
 
 for svc in ["nftables", "nginx", "ssh", "subsrv"]:
     systemd.service(

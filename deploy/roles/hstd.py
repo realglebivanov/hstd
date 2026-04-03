@@ -3,8 +3,8 @@ from deploy.triggers import changed
 from pyinfra import host, local
 from os import path
 
-local.include(filename=path.join("tasks", "hstd", "packages.py"))
-local.include(filename=path.join("tasks", "hstd", "configs.py"))
+local.include(filename=path.join("deploy", "tasks", "hstd", "packages.py"))
+local.include(filename=path.join("deploy", "tasks", "hstd", "configs.py"))
 
 server.user(
     name="Configure gleb user with SSH key",
