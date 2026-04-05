@@ -12,11 +12,16 @@ notify("systemd-journald", files.put(
     dest="/etc/systemd/journald.conf.d/retention.conf",
     mode="0644", user="root", group="root"))
 
+server.user(
+    name="Create xray system user",
+    user="xray", system=True, shell="/usr/sbin/nologin",
+    home="/nonexistent", create_home=False, ensure_home=False)
+
 notify("xray", files.template(
     name="Deploy xray config",
     src="deploy/templates/xray_server/xray-config.json.j2",
     dest="/usr/local/etc/xray/config.json",
-    mode="0640", user="root", group="nogroup"))
+    mode="0640", user="root", group="xray"))
 
 notify("xray", files.directory(
     name="Create xray.service.d",
