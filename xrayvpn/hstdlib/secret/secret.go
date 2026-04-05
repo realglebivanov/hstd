@@ -45,6 +45,12 @@ func generateClientUUID(i int, rootSecret []byte, t time.Time) string {
 		sum[0:4], sum[4:6], sum[6:8], sum[8:10], sum[10:16])
 }
 
+func DeriveCookieKey(rootSecret []byte) []byte {
+	h := hmac.New(sha256.New, rootSecret)
+	h.Write([]byte("cookie-store"))
+	return h.Sum(nil)
+}
+
 func deriveSubscriptionSecret(index int, rootSecret []byte) []byte {
 	secretMsg := fmt.Appendf(nil, "secret:%d", index)
 	secretMAC := hmac.New(sha256.New, rootSecret)

@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/sessions"
 	"github.com/realglebivanov/hstd/hstdlib"
+	"github.com/realglebivanov/hstd/hstdlib/secret"
 	"github.com/realglebivanov/hstd/hstdlib/xrayconf"
 	"github.com/realglebivanov/hstd/xrayconnectord/internal/client"
 	"github.com/realglebivanov/hstd/xrayconnectord/internal/db"
@@ -67,7 +68,7 @@ func New(rootSecret []byte) (*Server, error) {
 		legacySubPath: hstdlib.MustEnv("SUB_PATH"),
 		broadcast:     broadcast.New(),
 		auth: &auth{
-			sessions: sessions.NewCookieStore(rootSecret),
+			sessions: sessions.NewCookieStore(secret.DeriveCookieKey(rootSecret)),
 			sessionOpts: &sessions.Options{
 				HttpOnly: true,
 				SameSite: http.SameSiteStrictMode,
