@@ -3,6 +3,7 @@ package wsconn
 import (
 	"errors"
 	"net/http"
+	"net/url"
 
 	"github.com/gorilla/websocket"
 	"github.com/realglebivanov/hstd/xrayconnectord/internal/server/wsconn/state"
@@ -12,7 +13,19 @@ type WSConn struct {
 	state *state.ConnState
 }
 
-var upgrader = websocket.Upgrader{}
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return false
+		}
+		u, err := url.Parse(origin)
+		if err != nil {
+			return false
+		}
+		return u.Host == r.Host
+	},
+}
 
 func Upgrade(w http.ResponseWriter, r *http.Request) (*WSConn, error) {
 	c, err := upgrader.Upgrade(w, r, nil)

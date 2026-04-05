@@ -12,15 +12,18 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const (
+	XrayClientCount  = 100
+	DirectRouteTable = 100
+)
+
 var (
 	SocksHost = EnvOr("SOCKS_HOST", "127.0.0.1")
 	SocksPort = EnvOrUint32("SOCKS_PORT", 1080)
 	ApdCIDR   = EnvOr("APD_CIDR", "")
 
-	XrayClientCount  = 100
-	XrayOutMark      = EnvOrUint32("XRAY_OUT_MARK", 0x1f)
-	XrayTrafficMark  = EnvOrUint32("XRAY_TRAFFIC_MARK", 0x1337)
-	DirectRouteTable = 100
+	XrayOutMark     = EnvOrUint32("XRAY_OUT_MARK", 0x1f)
+	XrayTrafficMark = EnvOrUint32("XRAY_TRAFFIC_MARK", 0x1337)
 
 	TunDev = EnvOr("TUN_DEV", "xray0")
 	ApdDev = EnvOr("APD_DEV", "wlp4s0")

@@ -94,7 +94,13 @@ func (s *Server) Start() error {
 	mux.HandleFunc("GET /{link}", s.handleSubReq)
 
 	credsDir := hstdlib.MustEnv("CREDENTIALS_DIRECTORY")
-	s.httpServer = &http.Server{Addr: ":8080", Handler: mux}
+	s.httpServer = &http.Server{
+		Addr:         ":8080",
+		Handler:      mux,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
 
 	slog.Info("listening on :8080")
 	return s.httpServer.ListenAndServeTLS(

@@ -33,9 +33,12 @@ func generateClientUUID(i int, rootSecret []byte, t time.Time) string {
 	epoch := t.UTC().Add(-3 * time.Hour)
 	day := time.Date(epoch.Year(), epoch.Month(), epoch.Day(), 0, 0, 0, 0, time.UTC).Unix()
 
+	var dayBytes [8]byte
+	binary.BigEndian.PutUint64(dayBytes[:], uint64(day))
 	h := sha256.New()
-	binary.Write(h, binary.BigEndian, day)
+	h.Write(dayBytes[:])
 	h.Write(secret)
+
 	sum := h.Sum(nil)
 
 	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",

@@ -34,7 +34,7 @@ func (s *Server) handleAdminWS(w http.ResponseWriter, r *http.Request) {
 
 	for {
 		evt, err := wsc.ReadEvent()
-		if errors.Is(err, state.ConnClosed) {
+		if errors.Is(err, state.ErrConnClosed) {
 			slog.Info("ws conn closed")
 			break
 		}

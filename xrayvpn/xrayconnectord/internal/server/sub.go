@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"log/slog"
@@ -45,15 +46,17 @@ func (s *Server) handleSubReq(w http.ResponseWriter, r *http.Request) {
 	uuid := secret.GenerateClientUUID(l.Index, s.rootSecret)
 	configs := client.BuildConfigs(uuid, s.serverConfigs, s.routingRules)
 
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("profile-update-interval", "1")
-	w.Header().Set("profile-title", "base64:"+base64.StdEncoding.EncodeToString([]byte("hstd")))
-
-	if err := json.NewEncoder(w).Encode(configs); err != nil {
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(configs); err != nil {
 		slog.Error("encode response", "err", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("profile-update-interval", "1")
+	w.Header().Set("profile-title", "base64:"+base64.StdEncoding.EncodeToString([]byte("hstd")))
+	buf.WriteTo(w)
 }
 
 type httpError struct {

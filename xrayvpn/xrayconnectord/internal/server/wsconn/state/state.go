@@ -25,7 +25,7 @@ const (
 	writeTimeout = 5 * time.Second
 )
 
-var ConnClosed = errors.New("connection closed")
+var ErrConnClosed = errors.New("connection closed")
 
 func New(c *websocket.Conn) (*ConnState, error) {
 	if err := c.SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
@@ -47,7 +47,7 @@ func New(c *websocket.Conn) (*ConnState, error) {
 func (s *ConnState) Send(v any) error {
 	select {
 	case <-s.done:
-		return ConnClosed
+		return ErrConnClosed
 	default:
 	}
 
@@ -63,7 +63,7 @@ func (s *ConnState) Send(v any) error {
 func (s *ConnState) ReadData() ([]byte, error) {
 	select {
 	case <-s.done:
-		return nil, ConnClosed
+		return nil, ErrConnClosed
 	default:
 		_, data, err := s.conn.ReadMessage()
 		return data, err
