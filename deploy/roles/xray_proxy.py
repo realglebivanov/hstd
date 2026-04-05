@@ -12,6 +12,11 @@ for svc in ["nftables", "nginx", "ssh", "subsrv"]:
         service=svc, running=True, enabled=True,
         restarted=changed(svc), daemon_reload=changed(svc))
 
+systemd.service(
+    name="Restart systemd-journald",
+    service="systemd-journald",
+    restarted=changed("systemd-journald"))
+
 server.shell(
     name="Obtain Let's Encrypt certificate",
     commands=[

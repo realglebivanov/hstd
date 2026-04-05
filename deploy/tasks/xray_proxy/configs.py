@@ -6,6 +6,17 @@ from pyinfra.operations import files, server
 from deploy.triggers import notify
 
 files.directory(
+    name="Create journald.conf.d",
+    path="/etc/systemd/journald.conf.d",
+    mode="0755", user="root", group="root")
+
+notify("systemd-journald", files.put(
+    name="Deploy journald log retention config",
+    src="deploy/templates/xray_proxy/journald.conf",
+    dest="/etc/systemd/journald.conf.d/retention.conf",
+    mode="0644", user="root", group="root"))
+
+files.directory(
     name="Ensure /var/www/html exists",
     path="/var/www/html",
     present=True, mode="0755", user="www-data", group="www-data")

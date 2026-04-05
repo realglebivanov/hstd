@@ -1,5 +1,16 @@
-from pyinfra.operations import files
+from pyinfra.operations import files, server
 from deploy.triggers import notify
+
+files.directory(
+    name="Create journald.conf.d",
+    path="/etc/systemd/journald.conf.d",
+    mode="0755", user="root", group="root")
+
+notify("systemd-journald", files.put(
+    name="Deploy journald log retention config",
+    src="deploy/templates/hstd/journald.conf",
+    dest="/etc/systemd/journald.conf.d/retention.conf",
+    mode="0644", user="root", group="root"))
 
 for src, dest in [
     ("deploy/templates/hstd/network/10-apd.network.j2", "/etc/systemd/network/10-apd.network"),

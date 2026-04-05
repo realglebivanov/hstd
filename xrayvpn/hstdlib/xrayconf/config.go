@@ -11,6 +11,7 @@ type Config struct {
 
 type LogConfig struct {
 	LogLevel string `json:"loglevel"`
+	Access   string `json:"access,omitempty"`
 	DNSLog   bool   `json:"dnsLog,omitempty"`
 }
 

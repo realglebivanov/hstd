@@ -34,6 +34,11 @@ for svc in [
     service=svc, running=True, enabled=True,
     restarted=changed(svc), daemon_reload=changed(svc))
 
+systemd.service(
+    name="Restart systemd-journald",
+    service="systemd-journald",
+    restarted=changed("systemd-journald"))
+
 for svc in ["systemd-resolved"]:
     systemd.service(
         name=f"Enable and start {svc}",

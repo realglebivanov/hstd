@@ -13,6 +13,11 @@ for svc in ["nftables", "nginx", "xray", "ssh", "clientrotate"]:
         restarted=changed(svc), daemon_reload=changed(svc))
 
 systemd.service(
+    name="Restart systemd-journald",
+    service="systemd-journald",
+    restarted=changed("systemd-journald"))
+
+systemd.service(
     name="Enable and start clientrotate.timer",
     service="clientrotate.timer", running=True, enabled=True,
     restarted=changed("clientrotate"), daemon_reload=changed("clientrotate"))
