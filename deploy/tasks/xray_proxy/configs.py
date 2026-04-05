@@ -1,3 +1,7 @@
+import json
+from io import StringIO
+
+from pyinfra import host
 from pyinfra.operations import files, server
 from deploy.triggers import notify
 
@@ -39,6 +43,17 @@ files.template(
 server.shell(
     name="Apply sysctl tuning",
     commands=["sysctl -p /etc/sysctl.d/99-xray-proxy.conf"])
+
+files.directory(
+    name="Ensure /etc/subsrv exists",
+    path="/etc/subsrv",
+    present=True, mode="0755", user="root", group="root")
+
+notify("subsrv", files.put(
+    name="Deploy subsrv config",
+    src=StringIO(json.dumps(host.data.subsrv_config, ensure_ascii=False)),
+    dest="/etc/subsrv/config.json",
+    mode="0644", user="root", group="root"))
 
 notify("subsrv", files.template(
     name="Deploy subsrv.service",

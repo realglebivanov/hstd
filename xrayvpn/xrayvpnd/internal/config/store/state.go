@@ -7,11 +7,27 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/realglebivanov/hstd/hstdlib/xrayconf"
 )
 
 type State struct {
 	Links    []Link `json:"links"`
 	ActiveID string `json:"active_id"`
+}
+
+func (s *State) getActiveLink() (string, error) {
+	if s.ActiveID == "" {
+		return "", fmt.Errorf("no active link selected")
+	}
+
+	for _, item := range s.Links {
+		if item.ID == s.ActiveID {
+			return item.Link, nil
+		}
+	}
+
+	return "", fmt.Errorf("active link %q not found in state", s.ActiveID)
 }
 
 func (s *State) replaceDefaultLinks(serverLink, proxyLink string) error {
@@ -34,7 +50,7 @@ func (s *State) replaceDefaultLinks(serverLink, proxyLink string) error {
 func (s *State) addLink(link string, rotate bool) (string, error) {
 	link = strings.TrimSpace(link)
 
-	if err := validateLink(link); err != nil {
+	if _, err := xrayconf.ParseVLESSLink(link); err != nil {
 		return "", fmt.Errorf("invalid link: %v", err)
 	}
 

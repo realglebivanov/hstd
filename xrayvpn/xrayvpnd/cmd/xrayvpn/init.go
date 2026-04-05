@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-	"net/url"
 	"syscall"
 
 	"github.com/realglebivanov/hstd/hstdlib"
 	"github.com/realglebivanov/hstd/hstdlib/secret"
+	"github.com/realglebivanov/hstd/hstdlib/xrayconf"
 	"github.com/realglebivanov/hstd/xrayvpnd/internal/config/store"
 	"github.com/spf13/cobra"
 )
@@ -23,8 +23,23 @@ func newInitCmd() *cobra.Command {
 			}
 
 			uuid := secret.GenerateClientUUID(0, rootSecret)
-			serverLink := buildVLESSLink(uuid, args[1], args[3], args[4], args[5])
-			proxyLink := buildVLESSLink(uuid, args[2], args[3], args[4], args[5])
+			base := xrayconf.VLESSLink{
+				UUID:        uuid,
+				Port:        443,
+				Network:     "tcp",
+				Security:    "reality",
+				Flow:        "xtls-rprx-vision",
+				Fingerprint: "chrome",
+				PublicKey:   args[3],
+				SNI:         args[4],
+				ShortID:     args[5],
+			}
+
+			base.Address = args[1]
+			serverLink := base.String()
+
+			base.Address = args[2]
+			proxyLink := base.String()
 
 			if err := store.ReplaceDefaultLinks(serverLink, proxyLink); err != nil {
 				return err
@@ -35,16 +50,4 @@ func newInitCmd() *cobra.Command {
 		},
 	}
 	return cmd
-}
-
-func buildVLESSLink(uuid, host, pbk, sni, sid string) string {
-	q := url.Values{}
-	q.Set("type", "tcp")
-	q.Set("security", "reality")
-	q.Set("flow", "xtls-rprx-vision")
-	q.Set("fp", "chrome")
-	q.Set("pbk", pbk)
-	q.Set("sni", sni)
-	q.Set("sid", sid)
-	return fmt.Sprintf("vless://%s@%s:443?%s", uuid, host, q.Encode())
 }

@@ -13,17 +13,10 @@ StateDirectory=subsrv
 LoadCredential=tls_cert:/etc/letsencrypt/live/{{ host.data.proxy_domain }}/fullchain.pem
 LoadCredential=tls_key:/etc/letsencrypt/live/{{ host.data.proxy_domain }}/privkey.pem
 Environment=SECRET={{ host.data.rotate_secret }}
-Environment=PROXY_HOST={{ host.name }}
-Environment=SERVER_HOST={{ host.data.xray_server_addr }}
-Environment=REALITY_PBK={{ host.data.reality_pbk }}
-Environment=REALITY_SNI={{ host.data.reality_sni }}
-Environment=REALITY_SID={{ host.data.reality_sid }}
 Environment=SUB_PATH={{ host.data.sub_path }}
 Environment=ADMIN_USER={{ host.data.admin_user }}
 Environment="ADMIN_PASSWORD_HASH={{ host.data.admin_password_hash }}"
 Environment=PROXY_DOMAIN={{ host.data.proxy_domain }}
-Environment=XHTTP_CDN_DOMAIN={{ host.data.xhttp_cdn_domain }}
-Environment=XHTTP_PATH={{ host.data.xhttp_path }}
 
 [Install]
 WantedBy=multi-user.target

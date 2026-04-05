@@ -18,6 +18,18 @@ func GetState() (*State, error) {
 	return loadState()
 }
 
+func GetActiveLink() (string, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	st, err := loadState()
+	if err != nil {
+		return "", err
+	}
+
+	return st.getActiveLink()
+}
+
 func AddLink(link string, rotate bool) error {
 	mu.Lock()
 	defer mu.Unlock()

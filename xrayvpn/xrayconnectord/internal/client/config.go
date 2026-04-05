@@ -1,154 +1,43 @@
 package client
 
-type config struct {
-	Remarks   string        `json:"remarks"`
-	Log       logConfig     `json:"log"`
-	DNS       dnsConfig     `json:"dns"`
-	Inbounds  []inbound     `json:"inbounds"`
-	Outbounds []outbound    `json:"outbounds"`
-	Routing   routingConfig `json:"routing"`
-}
-
-type logConfig struct {
-	LogLevel string `json:"loglevel"`
-}
-
-type dnsConfig struct {
-	Servers []string `json:"servers"`
-}
-
-type inbound struct {
-	Tag      string          `json:"tag"`
-	Protocol string          `json:"protocol"`
-	Port     uint16          `json:"port"`
-	Listen   string          `json:"listen"`
-	Settings *socksSettings  `json:"settings,omitempty"`
-	Sniffing *sniffingConfig `json:"sniffing,omitempty"`
-}
-
-type socksSettings struct {
-	UDP bool `json:"udp"`
-}
-
-type sniffingConfig struct {
-	Enabled      bool     `json:"enabled"`
-	DestOverride []string `json:"destOverride"`
-}
-
-type outbound struct {
-	Tag            string        `json:"tag"`
-	Protocol       string        `json:"protocol"`
-	Settings       any           `json:"settings,omitempty"`
-	StreamSettings *streamConfig `json:"streamSettings,omitempty"`
-}
-
-type vlessSettings struct {
-	Vnext []vlessServer `json:"vnext"`
-}
-
-type vlessServer struct {
-	Address string      `json:"address"`
-	Port    uint16      `json:"port"`
-	Users   []vlessUser `json:"users"`
-}
-
-type vlessUser struct {
-	ID         string `json:"id"`
-	Flow       string `json:"flow"`
-	Encryption string `json:"encryption"`
-}
-
-type freedomSettings struct {
-	DomainStrategy string `json:"domainStrategy"`
-}
-
-type streamConfig struct {
-	Network         string         `json:"network"`
-	Security        string         `json:"security"`
-	REALITYSettings *realityConfig `json:"realitySettings,omitempty"`
-	TLSSettings     *tlsConfig     `json:"tlsSettings,omitempty"`
-	XHTTPSettings   *xhttpConfig   `json:"xhttpSettings,omitempty"`
-}
-
-type tlsConfig struct {
-	ServerName string `json:"serverName"`
-}
-
-type xhttpConfig struct {
-	Path              string `json:"path"`
-	XPaddingBytes     string `json:"xPaddingBytes,omitempty"`
-	XPaddingObfsMode  bool   `json:"xPaddingObfsMode,omitempty"`
-	XPaddingPlacement string `json:"xPaddingPlacement,omitempty"`
-	XPaddingKey       string `json:"xPaddingKey,omitempty"`
-	Mode              string `json:"mode,omitempty"`
-	UplinkHTTPMethod  string `json:"uplinkHTTPMethod,omitempty"`
-	NoGRPCHeader      bool   `json:"noGRPCHeader,omitempty"`
-	NoSSEHeader       bool   `json:"noSSEHeader,omitempty"`
-}
-
-type realityConfig struct {
-	Fingerprint string   `json:"fingerprint"`
-	ServerName  string   `json:"serverName"`
-	ServerNames []string `json:"serverNames"`
-	PublicKey   string   `json:"publicKey"`
-	PrivateKey  string   `json:"privateKey"`
-	ShortId     string   `json:"shortId"`
-}
-
-type routingConfig struct {
-	DomainStrategy string      `json:"domainStrategy"`
-	Rules          []routeRule `json:"rules"`
-}
-
-type routeRule struct {
-	Type        string   `json:"type"`
-	OutboundTag string   `json:"outboundTag"`
-	IP          []string `json:"ip,omitempty"`
-	Domain      []string `json:"domain,omitempty"`
-	Network     string   `json:"network,omitempty"`
-}
+import "github.com/realglebivanov/hstd/hstdlib/xrayconf"
 
 type ServerConfig struct {
-	Remark     string
-	Host       string
-	RealityPbk string
-	RealitySni string
-	RealitySid string
-	XHTTPPath  string
+	Remark     string `json:"remark"`
+	Host       string `json:"host"`
+	RealityPbk string `json:"realityPbk,omitempty"`
+	RealitySni string `json:"realitySni,omitempty"`
+	RealitySid string `json:"realitySid,omitempty"`
+	XHTTPPath  string `json:"xhttpPath,omitempty"`
 }
 
-func BuildConfigs(clientID string, servers []*ServerConfig) []config {
-	configs := make([]config, len(servers))
+func BuildConfigs(clientID string, servers []*ServerConfig, routingRules []xrayconf.RouteRule) []xrayconf.Config {
+	configs := make([]xrayconf.Config, len(servers))
 	for i, srv := range servers {
-		configs[i] = config{
+		configs[i] = xrayconf.Config{
 			Remarks:   srv.Remark,
-			Log:       logConfig{LogLevel: "warning"},
-			DNS:       dnsConfig{Servers: []string{"8.8.8.8", "1.1.1.1"}},
+			Log:       xrayconf.LogConfig{LogLevel: "warning"},
+			DNS:       &xrayconf.DNSConfig{Servers: []string{"8.8.8.8", "1.1.1.1"}},
 			Inbounds:  buildInbounds(),
 			Outbounds: buildOutbounds(clientID, srv),
-			Routing: routingConfig{
+			Routing: &xrayconf.RoutingConfig{
 				DomainStrategy: "IPIfNonMatch",
-				Rules: []routeRule{
-					{Type: "field", OutboundTag: "proxy", Domain: []string{"domain:yonote.ru"}},
-					{Type: "field", OutboundTag: "direct", IP: []string{"geoip:ru", "geoip:private"}},
-					{Type: "field", OutboundTag: "direct", Domain: []string{"geosite:category-ru", "geosite:category-gov-ru"}},
-					{Type: "field", OutboundTag: "proxy", Network: "tcp,udp"},
-				},
+				Rules:          routingRules,
 			},
 		}
 	}
 	return configs
 }
 
-func buildInbounds() []inbound {
-	return []inbound{
+func buildInbounds() []xrayconf.Inbound {
+	return []xrayconf.Inbound{
 		{
 			Tag:      "socks",
 			Protocol: "socks",
 			Port:     10808,
 			Listen:   "127.0.0.1",
-			Settings: &socksSettings{UDP: true},
-			Sniffing: &sniffingConfig{
+			Settings: &xrayconf.SocksSettings{UDP: true},
+			Sniffing: &xrayconf.Sniffing{
 				Enabled:      true,
 				DestOverride: []string{"http", "tls", "quic"},
 			},
@@ -158,7 +47,7 @@ func buildInbounds() []inbound {
 			Protocol: "http",
 			Port:     10809,
 			Listen:   "127.0.0.1",
-			Sniffing: &sniffingConfig{
+			Sniffing: &xrayconf.Sniffing{
 				Enabled:      true,
 				DestOverride: []string{"http", "tls", "quic"},
 			},
@@ -166,13 +55,13 @@ func buildInbounds() []inbound {
 	}
 }
 
-func buildOutbounds(clientID string, srv *ServerConfig) []outbound {
-	return []outbound{
+func buildOutbounds(clientID string, srv *ServerConfig) []xrayconf.Outbound {
+	return []xrayconf.Outbound{
 		buildProxyOutbound(clientID, srv),
 		{
 			Tag:      "direct",
 			Protocol: "freedom",
-			Settings: freedomSettings{DomainStrategy: "UseIP"},
+			Settings: xrayconf.FreedomSettings{DomainStrategy: "UseIP"},
 		},
 		{
 			Tag:      "block",
@@ -181,63 +70,63 @@ func buildOutbounds(clientID string, srv *ServerConfig) []outbound {
 	}
 }
 
-func buildProxyOutbound(clientID string, srv *ServerConfig) outbound {
+func buildProxyOutbound(clientID string, srv *ServerConfig) xrayconf.Outbound {
 	if srv.XHTTPPath != "" {
 		return buildXHTTPOutbound(clientID, srv)
 	}
 	return buildRealityOutbound(clientID, srv)
 }
 
-func buildRealityOutbound(clientID string, srv *ServerConfig) outbound {
-	return outbound{
+func buildRealityOutbound(clientID string, srv *ServerConfig) xrayconf.Outbound {
+	return xrayconf.Outbound{
 		Tag:      "proxy",
 		Protocol: "vless",
-		Settings: vlessSettings{
-			Vnext: []vlessServer{{
+		Settings: xrayconf.VLESSOutboundSettings{
+			Vnext: []xrayconf.VLESSServer{{
 				Address: srv.Host,
 				Port:    443,
-				Users: []vlessUser{{
+				Users: []xrayconf.VLESSAccount{{
 					ID:         clientID,
 					Flow:       "xtls-rprx-vision",
 					Encryption: "none",
 				}},
 			}},
 		},
-		StreamSettings: &streamConfig{
+		StreamSettings: &xrayconf.StreamConfig{
 			Network:  "tcp",
 			Security: "reality",
-			REALITYSettings: &realityConfig{
+			REALITYSettings: &xrayconf.RealityConfig{
 				Fingerprint: "chrome",
 				ServerName:  srv.RealitySni,
-				PublicKey:   srv.RealityPbk,
-				PrivateKey:  srv.RealityPbk,
-				ShortId:     srv.RealitySid,
+				PublicKey:    srv.RealityPbk,
+				PrivateKey:   srv.RealityPbk,
+				ShortID:     srv.RealitySid,
 			},
 		},
 	}
 }
 
-func buildXHTTPOutbound(clientID string, srv *ServerConfig) outbound {
-	return outbound{
+func buildXHTTPOutbound(clientID string, srv *ServerConfig) xrayconf.Outbound {
+	return xrayconf.Outbound{
 		Tag:      "proxy",
 		Protocol: "vless",
-		Settings: vlessSettings{
-			Vnext: []vlessServer{{
+		Settings: xrayconf.VLESSOutboundSettings{
+			Vnext: []xrayconf.VLESSServer{{
 				Address: srv.Host,
 				Port:    443,
-				Users: []vlessUser{{
+				Users: []xrayconf.VLESSAccount{{
 					ID:         clientID,
 					Encryption: "none",
 				}},
 			}},
 		},
-		StreamSettings: &streamConfig{
+		StreamSettings: &xrayconf.StreamConfig{
 			Network:  "xhttp",
 			Security: "tls",
-			TLSSettings: &tlsConfig{
+			TLSSettings: &xrayconf.TLSConfig{
 				ServerName: srv.Host,
 			},
-			XHTTPSettings: &xhttpConfig{
+			XHTTPSettings: &xrayconf.XHTTPConfig{
 				Path:              srv.XHTTPPath,
 				XPaddingBytes:     "10-100",
 				XPaddingObfsMode:  true,

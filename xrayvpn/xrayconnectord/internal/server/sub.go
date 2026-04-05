@@ -43,7 +43,7 @@ func (s *Server) handleSubReq(w http.ResponseWriter, r *http.Request) {
 	}
 
 	uuid := secret.GenerateClientUUID(l.Index, s.rootSecret)
-	configs := client.BuildConfigs(uuid, s.serverConfigs)
+	configs := client.BuildConfigs(uuid, s.serverConfigs, s.routingRules)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("profile-update-interval", "1")

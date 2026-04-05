@@ -2,14 +2,17 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/gorilla/sessions"
 	"github.com/realglebivanov/hstd/hstdlib"
+	"github.com/realglebivanov/hstd/hstdlib/xrayconf"
 	"github.com/realglebivanov/hstd/xrayconnectord/internal/client"
 	"github.com/realglebivanov/hstd/xrayconnectord/internal/db"
 	"github.com/realglebivanov/hstd/xrayconnectord/internal/server/admin/view"
@@ -31,7 +34,15 @@ type Server struct {
 	auth          *auth
 	view          *view.Builder
 	serverConfigs []*client.ServerConfig
+	routingRules  []xrayconf.RouteRule
 	httpServer    *http.Server
+}
+
+const configPath = "/etc/subsrv/config.json"
+
+type subsrvConfig struct {
+	Servers      []*client.ServerConfig `json:"servers"`
+	RoutingRules []xrayconf.RouteRule   `json:"routingRules"`
 }
 
 func New(rootSecret []byte) (*Server, error) {
@@ -40,9 +51,19 @@ func New(rootSecret []byte) (*Server, error) {
 		return nil, fmt.Errorf("open database: %v", err)
 	}
 
+	cfgData, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", configPath, err)
+	}
+	var cfg subsrvConfig
+	if err := json.Unmarshal(cfgData, &cfg); err != nil {
+		return nil, fmt.Errorf("parse %s: %w", configPath, err)
+	}
+
 	return &Server{
 		db:            db,
 		rootSecret:    rootSecret,
+		routingRules:  cfg.RoutingRules,
 		legacySubPath: hstdlib.MustEnv("SUB_PATH"),
 		broadcast:     broadcast.New(),
 		auth: &auth{
@@ -62,23 +83,8 @@ func New(rootSecret []byte) (*Server, error) {
 			RootSecret:  rootSecret,
 			ProxyDomain: hstdlib.MustEnv("PROXY_DOMAIN"),
 		},
-		serverConfigs: []*client.ServerConfig{{
-			Remark:     "Обычный ВПН",
-			Host:       hstdlib.MustEnv("SERVER_HOST"),
-			RealityPbk: hstdlib.MustEnv("REALITY_PBK"),
-			RealitySni: hstdlib.MustEnv("REALITY_SNI"),
-			RealitySid: hstdlib.MustEnv("REALITY_SID"),
-		}, {
-			Remark:     "Обход белых списков(tcp, reality)",
-			Host:       hstdlib.MustEnv("PROXY_HOST"),
-			RealityPbk: hstdlib.MustEnv("REALITY_PBK"),
-			RealitySni: hstdlib.MustEnv("REALITY_SNI"),
-			RealitySid: hstdlib.MustEnv("REALITY_SID"),
-		}, {
-			Remark:    "Обход белых списков(xhttp, tls)",
-			Host:      hstdlib.MustEnv("XHTTP_CDN_DOMAIN"),
-			XHTTPPath: hstdlib.MustEnv("XHTTP_PATH"),
-		}}}, nil
+		serverConfigs: cfg.Servers,
+	}, nil
 }
 
 func (s *Server) Start() error {
