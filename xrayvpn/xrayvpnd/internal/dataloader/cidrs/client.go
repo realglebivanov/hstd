@@ -2,7 +2,6 @@ package cidrs
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -56,12 +55,7 @@ func fetchSource(client *http.Client, src *Source) ([]string, error) {
 		return nil, fmt.Errorf("fetch %s: HTTP %d", src.URL, resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", src.URL, err)
-	}
-
-	cidrs, err := parseCIDRs(body)
+	cidrs, err := parseCIDRs(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -70,9 +64,9 @@ func fetchSource(client *http.Client, src *Source) ([]string, error) {
 	return cidrs, nil
 }
 
-func parseCIDRs(body []byte) ([]string, error) {
+func parseCIDRs(r io.Reader) ([]string, error) {
 	var cidrs []string
-	scanner := bufio.NewScanner(bytes.NewReader(body))
+	scanner := bufio.NewScanner(r)
 
 	for scanner.Scan() {
 		fields := strings.Split(scanner.Text(), "|")
