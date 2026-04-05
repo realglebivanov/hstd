@@ -17,7 +17,7 @@ server.shell(
     commands=[
         "certbot certonly --webroot -w /var/www/html"
         f" -d {host.data.proxy_domain}"
-        " --non-interactive --agree-tos -m realglebivanov@gmail.com"
+        f" --non-interactive --agree-tos -m {host.data.letsencrypt_email}"
         " --keep-until-expiring"
         " --deploy-hook 'systemctl restart subsrv'",
     ])

@@ -9,3 +9,5 @@ reality_sid = "e2174ad2204ca5c5"
 xhttp_source_domain = "cdn.hstd.space"
 xhttp_cdn_domain = "pub.cdn.hstd.space"
 xhttp_path = "/cdn"
+
+letsencrypt_email = "realglebivanov@gmail.com"

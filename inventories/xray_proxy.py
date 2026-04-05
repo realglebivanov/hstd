@@ -9,6 +9,7 @@ hosts = [
         "rotate_secret": passwd.rotate_secret,
         "sub_path": passwd.sub_path,
         "proxy_domain": "x.hstd.space",
+        "letsencrypt_email": xray.letsencrypt_email,
         "admin_user": passwd.admin_user,
         "admin_password_hash": passwd.admin_password_hash,
         "subsrv_config": {

@@ -277,8 +277,6 @@ If you use `hstd`, audit these fields carefully:
 
 Several important values are still hardcoded outside the inventories:
 
-- `deploy/roles/xray_proxy.py`: certbot email address
-- `deploy/roles/xray_xhttpserver.py`: certbot email address
 - `deploy/roles/hstd.py`: creates user `gleb` and installs a hardcoded SSH public key
 - `deploy/templates/hstd/hostapd.conf.j2`: SSID, channel plan, and `country_code=RU`
 
@@ -541,7 +539,7 @@ In practice, that means:
 
 - `proxy_domain` must resolve to `xray_proxy_addr`.
 - `xhttp_source_domain` must resolve directly to `xray_xhttpserver_addr` if you deploy `xray_xhttpserver`.
-- Update the hardcoded certbot email addresses in the role files if needed.
+- Update `letsencrypt_email` in `deploy/xray.py` if needed.
 
 ### Subscription works but one of the three configs is broken
 
