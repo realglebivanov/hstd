@@ -28,7 +28,7 @@ func main() {
 		flow = os.Args[2]
 	}
 
-	uuids := secret.GenerateClientUUIDs(scrt)
+	uuids := secret.GenerateGracefulClientUUIDs(scrt)
 	slog.Info("rotating client_id", "clients", len(uuids), "flow", flow)
 
 	if err := rotate(uuids, flow); err != nil {

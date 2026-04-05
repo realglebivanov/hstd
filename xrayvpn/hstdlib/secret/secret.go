@@ -10,21 +10,27 @@ import (
 	"github.com/realglebivanov/hstd/hstdlib"
 )
 
-func GenerateClientUUIDs(rootSecret []byte) []string {
-	var uuids []string
+func GenerateGracefulClientUUIDs(rootSecret []byte) []string {
+	now := time.Now()
+	yesterday := now.Add(-24 * time.Hour)
 
+	uuids := make([]string, 0, hstdlib.XrayClientCount*2)
 	for i := range hstdlib.XrayClientCount {
-		uuids = append(uuids, GenerateClientUUID(i, rootSecret))
+		uuids = append(uuids, generateClientUUID(i, rootSecret, now))
+		uuids = append(uuids, generateClientUUID(i, rootSecret, yesterday))
 	}
 
 	return uuids
 }
 
 func GenerateClientUUID(i int, rootSecret []byte) string {
+	return generateClientUUID(i, rootSecret, time.Now())
+}
+
+func generateClientUUID(i int, rootSecret []byte, t time.Time) string {
 	secret := deriveSubscriptionSecret(i, rootSecret)
 
-	now := time.Now().UTC()
-	epoch := now.Add(-3 * time.Hour)
+	epoch := t.UTC().Add(-3 * time.Hour)
 	day := time.Date(epoch.Year(), epoch.Month(), epoch.Day(), 0, 0, 0, 0, time.UTC).Unix()
 
 	h := sha256.New()
