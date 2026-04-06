@@ -1,6 +1,6 @@
 [Unit]
-Description=Rotate xray client UUID
+Description=Sync xray client conns from subscription
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/xrayvpn link init -- {{ host.data.rotate_secret }} {{ host.data.xray_server_addr }} {{ host.data.xray_proxy_addr }} {{ host.data.reality_pbk }} {{ host.data.reality_sni }} {{ host.data.reality_sid }}
+ExecStart=/usr/bin/xrayvpn sub sync

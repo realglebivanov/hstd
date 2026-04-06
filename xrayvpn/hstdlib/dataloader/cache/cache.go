@@ -3,9 +3,8 @@ package cache
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"time"
-
-	"github.com/xtls/xray-core/common/platform"
 )
 
 const cacheTTL = 2 * time.Hour
@@ -25,8 +24,16 @@ type CacheResult struct {
 	Err   error
 }
 
-func Read(name string) *CacheResult {
-	path := platform.GetAssetLocation(name)
+type Cache struct {
+	dir string
+}
+
+func New(dir string) *Cache {
+	return &Cache{dir: dir}
+}
+
+func (c *Cache) Read(name string) *CacheResult {
+	path := filepath.Join(c.dir, name)
 	info, statErr := os.Stat(path)
 	if statErr != nil {
 		if errors.Is(statErr, os.ErrNotExist) {
@@ -49,15 +56,15 @@ func Read(name string) *CacheResult {
 	return &CacheResult{State: CacheFresh, Data: data}
 }
 
-func Write(name string, data []byte) error {
-	return WriteWith(name, func(f *os.File) error {
+func (c *Cache) Write(name string, data []byte) error {
+	return c.WriteWith(name, func(f *os.File) error {
 		_, err := f.Write(data)
 		return err
 	})
 }
 
-func WriteWith(name string, write func(*os.File) error) error {
-	dest := platform.GetAssetLocation(name)
+func (c *Cache) WriteWith(name string, write func(*os.File) error) error {
+	dest := filepath.Join(c.dir, name)
 	tmp := dest + ".tmp"
 
 	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0660)

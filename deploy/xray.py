@@ -6,6 +6,7 @@ reality_pbk = "-wQcqdK1CZB9rcW3zeM3W2qx5lDENo9g3YN-jSU-LWI"
 reality_sni = "yandex.ru"
 reality_sid = "e2174ad2204ca5c5"
 
+proxy_domain = "x.hstd.space"
 xhttp_source_domain = "cdn.hstd.space"
 xhttp_cdn_domain = "pub.cdn.hstd.space"
 xhttp_path = "/cdn"

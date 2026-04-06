@@ -15,11 +15,14 @@ import (
 const (
 	XrayClientCount  = 100
 	DirectRouteTable = 100
+	ProxyTag         = "proxy"
+	DirectTag        = "direct"
+	BlockTag         = "block"
 )
 
 var (
 	SocksHost = EnvOr("SOCKS_HOST", "127.0.0.1")
-	SocksPort = EnvOrUint32("SOCKS_PORT", 1080)
+	SocksPort = EnvOrUint16("SOCKS_PORT", 1080)
 	ApdCIDR   = EnvOr("APD_CIDR", "")
 
 	XrayOutMark     = EnvOrUint32("XRAY_OUT_MARK", 0x1f)
@@ -110,14 +113,29 @@ func EnvOrUint32(key string, fallback uint32) uint32 {
 	return uint32(n)
 }
 
-func MustEnvHex(key string) []byte {
-	v := MustEnv(key)
-	b, err := hex.DecodeString(v)
+func EnvOrUint16(key string, fallback uint16) uint16 {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	n, err := strconv.ParseUint(v, 0, 16)
 	if err != nil {
-		slog.Error("env var must be hex", "key", key, "err", err)
+		return fallback
+	}
+	return uint16(n)
+}
+
+func MustHex(s string) []byte {
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		slog.Error("invalid hex string", "err", err)
 		os.Exit(1)
 	}
 	return b
+}
+
+func MustEnvHex(key string) []byte {
+	return MustHex(MustEnv(key))
 }
 
 func MustEnv(key string) string {

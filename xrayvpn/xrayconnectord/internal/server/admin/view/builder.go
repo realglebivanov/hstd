@@ -8,7 +8,8 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/realglebivanov/hstd/xrayconnectord/internal/link"
+	"github.com/realglebivanov/hstd/hstdlib/sublink"
+	"github.com/realglebivanov/hstd/xrayconnectord/internal/db"
 	qrcode "github.com/skip2/go-qrcode"
 )
 
@@ -42,7 +43,7 @@ func (b *Builder) BuildHTMLContext() *HTMLContext {
 	return &HTMLContext{template.JS(vueJS)}
 }
 
-func (b *Builder) BuildRows(links []link.LinkInfo) ([]*Row, error) {
+func (b *Builder) BuildRows(links []db.SublinkInfo) ([]*Row, error) {
 	rows := []*Row{}
 	for _, l := range links {
 		r, err := b.BuildRow(&l)
@@ -55,7 +56,7 @@ func (b *Builder) BuildRows(links []link.LinkInfo) ([]*Row, error) {
 	return rows, nil
 }
 
-func (b *Builder) BuildRow(info *link.LinkInfo) (*Row, error) {
+func (b *Builder) BuildRow(info *db.SublinkInfo) (*Row, error) {
 	url, qr, err := b.buildUrlAndQR(info)
 	if err != nil {
 		return nil, err
@@ -77,13 +78,13 @@ func (b *Builder) BuildRow(info *link.LinkInfo) (*Row, error) {
 	}, nil
 }
 
-func (b *Builder) buildUrlAndQR(info *link.LinkInfo) (string, string, error) {
-	hex, err := link.New(info.Index, b.RootSecret).Marshal()
+func (b *Builder) buildUrlAndQR(info *db.SublinkInfo) (string, string, error) {
+	subPath, err := sublink.SubPath(info.Index, b.RootSecret)
 	if err != nil {
-		return "", "", fmt.Errorf("marshal link %d: %v", info.Index, err)
+		return "", "", err
 	}
 
-	url := fmt.Sprintf("https://%s:8080/%s", b.ProxyDomain, hex)
+	url := fmt.Sprintf("https://%s:8080/%s", b.ProxyDomain, subPath)
 	png, err := qrcode.Encode(url, qrcode.Highest, 200)
 	if err != nil {
 		return "", "", fmt.Errorf("qr link %d: %v", info.Index, err)

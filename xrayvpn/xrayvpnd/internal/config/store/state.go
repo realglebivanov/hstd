@@ -1,8 +1,7 @@
 package store
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -12,66 +11,111 @@ import (
 )
 
 type State struct {
-	Links    []Link `json:"links"`
-	ActiveID string `json:"active_id"`
+	Subs     []*Sub  `json:"subs,omitempty"`
+	Conns    []*Conn `json:"conns"`
+	ActiveID string  `json:"active_id"`
 }
 
-func (s *State) getActiveLink() (string, error) {
+func (s *State) getActiveConfig() (*xrayconf.Config, error) {
 	if s.ActiveID == "" {
-		return "", fmt.Errorf("no active link selected")
+		return nil, fmt.Errorf("no active conn selected")
 	}
 
-	for _, item := range s.Links {
+	for _, item := range s.Conns {
 		if item.ID == s.ActiveID {
-			return item.Link, nil
+			var cfg xrayconf.Config
+			if err := json.Unmarshal(item.Config, &cfg); err != nil {
+				return nil, fmt.Errorf("unmarshal config: %w", err)
+			}
+			return &cfg, nil
 		}
 	}
 
-	return "", fmt.Errorf("active link %q not found in state", s.ActiveID)
+	return nil, fmt.Errorf("active conn %q not found in state", s.ActiveID)
 }
 
-func (s *State) replaceDefaultLinks(serverLink, proxyLink string) error {
-	s.Links = slices.DeleteFunc(s.Links, func(l Link) bool {
-		return l.Rotate
+func (s *State) syncConns(cfgs map[string][]*xrayconf.Config) error {
+	s.Conns = slices.DeleteFunc(s.Conns, func(c *Conn) bool {
+		_, synced := cfgs[c.SubID]
+		return synced
 	})
 
-	activeID, pErr := s.addLink(proxyLink, true)
-	_, sErr := s.addLink(serverLink, true)
+	var errs []error
+	var activeIDMet bool
 
-	if err := errors.Join(pErr, sErr); err != nil {
-		return err
+	for subID, configs := range cfgs {
+		for _, cfg := range configs {
+			conn, err := s.addConn(cfg, subID)
+			activeIDMet = activeIDMet || conn.ID == s.ActiveID
+			errs = append(errs, err)
+		}
 	}
 
-	s.ActiveID = activeID
+	if !activeIDMet {
+		s.ActiveID = ""
+		if len(s.Conns) > 0 {
+			s.ActiveID = s.Conns[0].ID
+		}
+	}
 
+	return errors.Join(errs...)
+}
+
+func (s *State) addSub(url string) {
+	sub := NewSub(url)
+	if slices.ContainsFunc(s.Subs, func(s *Sub) bool { return s.ID == sub.ID }) {
+		return
+	}
+	s.Subs = append(s.Subs, sub)
+}
+
+func (s *State) removeSub(id string) error {
+	idx := slices.IndexFunc(s.Subs, func(s *Sub) bool { return s.ID == id })
+	if idx == -1 {
+		return fmt.Errorf("subscription %q not found", id)
+	}
+
+	subID := s.Subs[idx].ID
+	s.Subs = slices.Delete(s.Subs, idx, idx+1)
+	s.Conns = slices.DeleteFunc(s.Conns, func(c *Conn) bool { return c.SubID == subID })
+
+	if s.ActiveID == "" {
+		return nil
+	}
+	if slices.ContainsFunc(s.Conns, func(c *Conn) bool { return c.ID == s.ActiveID }) {
+		return nil
+	}
+
+	s.ActiveID = ""
+	if len(s.Conns) > 0 {
+		s.ActiveID = s.Conns[0].ID
+	}
 	return nil
 }
 
-func (s *State) addLink(link string, rotate bool) (string, error) {
-	link = strings.TrimSpace(link)
-
-	if _, err := xrayconf.ParseVLESSLink(link); err != nil {
-		return "", fmt.Errorf("invalid link: %v", err)
+func (s *State) addConn(cfg *xrayconf.Config, subID string) (*Conn, error) {
+	conn, err := NewConn(cfg, subID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build a conn")
 	}
 
-	for _, existing := range s.Links {
-		if existing.Link == link {
-			return "", fmt.Errorf("link already exists")
+	for _, existing := range s.Conns {
+		if existing.ID == conn.ID {
+			return nil, fmt.Errorf("conn %q already exists", conn.Remark)
 		}
 	}
 
-	id := hashID(link)
-	s.Links = append(s.Links, Link{ID: id, Link: link, Rotate: rotate})
+	s.Conns = append(s.Conns, conn)
 
-	return id, nil
+	return conn, nil
 }
 
-func (s *State) removeLink(id string) (bool, error) {
+func (s *State) removeConn(id string) (bool, error) {
 	id = strings.TrimSpace(id)
 	wasActive := id == s.ActiveID
 
 	idx := -1
-	for i, item := range s.Links {
+	for i, item := range s.Conns {
 		if item.ID == id {
 			idx = i
 			break
@@ -79,38 +123,32 @@ func (s *State) removeLink(id string) (bool, error) {
 	}
 
 	if idx == -1 {
-		return wasActive, fmt.Errorf("link id %q not found", id)
+		return wasActive, fmt.Errorf("conn id %q not found", id)
 	}
 
-	s.Links = append(s.Links[:idx], s.Links[idx+1:]...)
+	s.Conns = append(s.Conns[:idx], s.Conns[idx+1:]...)
 
 	if s.ActiveID == id {
-		if len(s.Links) > 0 {
-			s.ActiveID = s.Links[0].ID
-		} else {
-			s.ActiveID = ""
+		s.ActiveID = ""
+		if len(s.Conns) > 0 {
+			s.ActiveID = s.Conns[0].ID
 		}
 	}
 	return wasActive, nil
 }
 
-func (s *State) chooseLink(id string) error {
+func (s *State) chooseConn(id string) error {
 	id = strings.TrimSpace(id)
 
 	if id == "" {
 		return errors.New("empty id")
 	}
 
-	for _, item := range s.Links {
+	for _, item := range s.Conns {
 		if item.ID == id {
 			s.ActiveID = id
 			return nil
 		}
 	}
-	return fmt.Errorf("link id %q not found", id)
-}
-
-func hashID(link string) string {
-	h := sha256.Sum256([]byte(link))
-	return hex.EncodeToString(h[:4])
+	return fmt.Errorf("conn id %q not found", id)
 }

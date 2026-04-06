@@ -5,8 +5,9 @@ import (
 	"log/slog"
 	"sync"
 
+	"github.com/realglebivanov/hstd/hstdlib/dataloader"
 	"github.com/realglebivanov/hstd/xrayvpnd/internal/config"
-	"github.com/realglebivanov/hstd/xrayvpnd/internal/dataloader"
+	"github.com/xtls/xray-core/common/platform"
 	core "github.com/xtls/xray-core/core"
 	_ "github.com/xtls/xray-core/main/distro/all"
 )
@@ -15,11 +16,14 @@ type Supervisor struct {
 	mu        sync.Mutex
 	wg        sync.WaitGroup
 	instance  *core.Instance
+	loader    *dataloader.Loader
 	RefreshCh chan struct{}
 }
 
 func New() *Supervisor {
-	return &Supervisor{RefreshCh: make(chan struct{}, 1)}
+	cacheDir := platform.GetAssetLocation("")
+	loader := dataloader.New(cacheDir)
+	return &Supervisor{loader: loader, RefreshCh: make(chan struct{}, 1)}
 }
 
 func (s *Supervisor) Start() error {
@@ -38,16 +42,16 @@ func (s *Supervisor) Refresh() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if err := dataloader.RefreshAll(); err != nil {
+	if err := s.loader.RefreshGeodata(); err != nil {
 		return fmt.Errorf("refresh failed: %v", err)
 	}
 
 	if s.instance == nil {
-		slog.Info("data refreshed (not running, skipping restart)")
+		slog.Info("geodata refreshed (not running, skipping restart)")
 		return nil
 	}
 
-	slog.Info("data refreshed, restarting with new data ...")
+	slog.Info("geodata refreshed, restarting with new data ...")
 	return s.startLocked()
 }
 
@@ -56,12 +60,12 @@ func (s *Supervisor) startLocked() error {
 		return err
 	}
 
-	data, err := dataloader.Load()
+	geoStale, err := s.loader.LoadGeodata()
 	if err != nil {
-		return fmt.Errorf("load data: %w", err)
+		return fmt.Errorf("load geodata: %w", err)
 	}
 
-	coreConfig, err := config.BuildCoreConfig(data.RuCIDRs)
+	coreConfig, err := config.BuildCoreConfig()
 	if err != nil {
 		return fmt.Errorf("build xray-core config: %w", err)
 	}
@@ -79,15 +83,7 @@ func (s *Supervisor) startLocked() error {
 
 	slog.Info("xray-core started")
 
-	if data.Stale.Any() {
-		s.wg.Go(func() {
-			data.Stale.Refresh()
-			select {
-			case s.RefreshCh <- struct{}{}:
-			default:
-			}
-		})
-	}
+	s.wg.Go(func() { geoStale.Refresh(s.RefreshCh) })
 
 	return nil
 }

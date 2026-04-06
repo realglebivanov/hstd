@@ -39,12 +39,17 @@ func main() {
 		newStartCmd(),
 		newStopCmd(),
 		newRefreshCmd(),
-		newLinkCmds(),
+		newConnCmd(),
+		newSubCmd(),
 	)
 
 	if err := root.Execute(); err != nil {
 		os.Exit(1)
 	}
+}
+
+func reloadDaemon() error {
+	return send(xrayvpndProcess, syscall.SIGUSR2)
 }
 
 func send(proc managedProcess, sig syscall.Signal) error {
@@ -57,14 +62,6 @@ func send(proc managedProcess, sig syscall.Signal) error {
 	}
 	slog.Info("sent signal", "proc", proc.name, "pid", p.Pid)
 	return nil
-}
-
-func readPID(proc managedProcess) (int, error) {
-	data, err := os.ReadFile(proc.pidFile)
-	if err != nil {
-		return 0, err
-	}
-	return strconv.Atoi(strings.TrimSpace(string(data)))
 }
 
 func findProcess(proc managedProcess) (*os.Process, error) {
@@ -80,4 +77,12 @@ func findProcess(proc managedProcess) (*os.Process, error) {
 		return nil, fmt.Errorf("%s pid %d not alive", proc.name, pid)
 	}
 	return p, nil
+}
+
+func readPID(proc managedProcess) (int, error) {
+	data, err := os.ReadFile(proc.pidFile)
+	if err != nil {
+		return 0, err
+	}
+	return strconv.Atoi(strings.TrimSpace(string(data)))
 }

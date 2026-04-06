@@ -1,5 +1,6 @@
 from pyinfra.operations import systemd, server
 from deploy.triggers import changed
+from deploy import passwd, xray
 from pyinfra import host, local
 from os import path
 
@@ -22,22 +23,24 @@ systemd.service(
     restarted=changed("clientrotate"), daemon_reload=changed("clientrotate"))
 
 server.shell(
+    name="Add default subscription",
+    commands=[
+        f"/usr/bin/xrayvpn sub add"
+        f" $(/usr/bin/xrayvpn sub url {xray.proxy_domain} {passwd.rotate_secret})",
+    ])
+
+server.shell(
     name="Run initial client rotation",
     commands=["systemctl start clientrotate.service"])
 
 for svc in [
     "nftables", "dnsmasq", "hostapd",
     "xrayvpnd", "navidrome", "transmission-daemon", "ssh",
-    "systemd-networkd", "networkd-dispatcher"
+    "systemd-networkd", "networkd-dispatcher", "systemd-journald"
 ]: systemd.service(
     name=f"Enable and start {svc}",
     service=svc, running=True, enabled=True,
     restarted=changed(svc), daemon_reload=changed(svc))
-
-systemd.service(
-    name="Restart systemd-journald",
-    service="systemd-journald",
-    restarted=changed("systemd-journald"))
 
 for svc in ["systemd-resolved"]:
     systemd.service(

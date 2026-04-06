@@ -2,15 +2,18 @@ package server
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/base64"
 	"encoding/json"
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 
 	"github.com/realglebivanov/hstd/hstdlib/secret"
+	"github.com/realglebivanov/hstd/hstdlib/sublink"
+	"github.com/realglebivanov/hstd/hstdlib/xrayconf"
 	"github.com/realglebivanov/hstd/xrayconnectord/internal/client"
-	"github.com/realglebivanov/hstd/xrayconnectord/internal/link"
 )
 
 func (s *Server) handleSubReq(w http.ResponseWriter, r *http.Request) {
@@ -44,7 +47,8 @@ func (s *Server) handleSubReq(w http.ResponseWriter, r *http.Request) {
 	}
 
 	uuid := secret.GenerateClientUUID(l.Index, s.rootSecret)
-	configs := client.BuildConfigs(uuid, s.serverConfigs, s.routingRules)
+	rules := xrayconf.ExpandRules(s.routingRules, s.cidrs.Get())
+	configs := client.BuildConfigs(uuid, s.serverConfigs, rules)
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(configs); err != nil {
@@ -56,7 +60,15 @@ func (s *Server) handleSubReq(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("profile-update-interval", "1")
 	w.Header().Set("profile-title", "base64:"+base64.StdEncoding.EncodeToString([]byte("hstd")))
-	buf.WriteTo(w)
+
+	if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+		w.Header().Set("Content-Encoding", "gzip")
+		gz := gzip.NewWriter(w)
+		buf.WriteTo(gz)
+		gz.Close()
+	} else {
+		buf.WriteTo(w)
+	}
 }
 
 type httpError struct {
@@ -64,7 +76,7 @@ type httpError struct {
 	code   int
 }
 
-func (s *Server) validateSubInput(r *http.Request) (*link.Link, *httpError) {
+func (s *Server) validateSubInput(r *http.Request) (*sublink.Sublink, *httpError) {
 	l, httpErr := s.buildSubLink(r)
 	if httpErr != nil {
 		return nil, httpErr
@@ -82,22 +94,22 @@ func (s *Server) validateSubInput(r *http.Request) (*link.Link, *httpError) {
 	return l, nil
 }
 
-func (s *Server) buildSubLink(r *http.Request) (*link.Link, *httpError) {
+func (s *Server) buildSubLink(r *http.Request) (*sublink.Sublink, *httpError) {
 	src := r.PathValue("link")
 
 	if src == s.legacySubPath {
-		return link.New(0, s.rootSecret), nil
+		return sublink.New(0, s.rootSecret), nil
 	}
 
-	l, err := link.Unmarshal(src)
+	sl, err := sublink.Unmarshal(src)
 	if err != nil {
 		slog.Warn("decode input link", "err", err)
 		return nil, &httpError{"bad request", http.StatusBadRequest}
 	}
 
-	if !l.IsValid(s.rootSecret) {
+	if !sl.IsValid(s.rootSecret) {
 		return nil, &httpError{"bad request", http.StatusBadRequest}
 	}
 
-	return l, nil
+	return sl, nil
 }

@@ -16,7 +16,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := os.WriteFile(hstdlib.XrayVpnPIDFile, fmt.Appendf(nil, "%d", os.Getpid()), 0644); err != nil {
+	pid := fmt.Appendf(nil, "%d", os.Getpid())
+
+	if err := os.WriteFile(hstdlib.XrayVpnPIDFile, pid, 0644); err != nil {
 		slog.Error("write pid file", "err", err)
 		os.Exit(1)
 	}

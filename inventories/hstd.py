@@ -19,11 +19,5 @@ hosts = [
         "apd_dev": "wlp4s0",
         "lan_dev": "enp2s0",
         "tun_dev": "xray0",
-        "rotate_secret": passwd.rotate_secret,
-        "xray_server_addr": xray.xray_server_addr,
-        "xray_proxy_addr": xray.xray_proxy_addr,
-        "reality_pbk": xray.reality_pbk,
-        "reality_sni": xray.reality_sni,
-        "reality_sid": xray.reality_sid,
     }),
 ]

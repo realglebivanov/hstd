@@ -27,8 +27,8 @@ func lookupDefaultGateway() (*netlink.Route, netlink.Link, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("list routes: %w", err)
 	}
-	for _, r := range routes {
-		link := getDefaultGatewayLink(&r)
+	for i := range routes {
+		link := getDefaultGatewayLink(&routes[i])
 		if link == nil {
 			continue
 		}
@@ -37,7 +37,7 @@ func lookupDefaultGateway() (*netlink.Route, netlink.Link, error) {
 			continue
 		}
 
-		return &r, link, nil
+		return &routes[i], link, nil
 	}
 	return nil, nil, fmt.Errorf("no default gateway found")
 }

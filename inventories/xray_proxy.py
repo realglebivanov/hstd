@@ -8,7 +8,7 @@ hosts = [
         "xray_server_addr": xray.xray_server_addr,
         "rotate_secret": passwd.rotate_secret,
         "sub_path": passwd.sub_path,
-        "proxy_domain": "x.hstd.space",
+        "proxy_domain": xray.proxy_domain,
         "letsencrypt_email": xray.letsencrypt_email,
         "admin_user": passwd.admin_user,
         "admin_password_hash": passwd.admin_password_hash,
@@ -36,7 +36,7 @@ hosts = [
             ],
             "routingRules": [
                 {"type": "field", "outboundTag": "proxy", "domain": ["domain:yonote.ru"]},
-                {"type": "field", "outboundTag": "direct", "ip": ["geoip:ru", "geoip:private"]},
+                {"type": "field", "outboundTag": "direct", "ip": ["geoip:ru", "geoip:private", "cidr:ru"]},
                 {"type": "field", "outboundTag": "direct", "domain": ["geosite:category-ru", "geosite:category-gov-ru"]},
                 {"type": "field", "outboundTag": "proxy", "network": "tcp,udp"},
             ],

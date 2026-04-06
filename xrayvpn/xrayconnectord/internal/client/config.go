@@ -1,6 +1,9 @@
 package client
 
-import "github.com/realglebivanov/hstd/hstdlib/xrayconf"
+import (
+	"github.com/realglebivanov/hstd/hstdlib"
+	"github.com/realglebivanov/hstd/hstdlib/xrayconf"
+)
 
 type ServerConfig struct {
 	Remark     string `json:"remark"`
@@ -11,7 +14,11 @@ type ServerConfig struct {
 	XHTTPPath  string `json:"xhttpPath,omitempty"`
 }
 
-func BuildConfigs(clientID string, servers []*ServerConfig, routingRules []xrayconf.RouteRule) []xrayconf.Config {
+func BuildConfigs(
+	clientID string,
+	servers []*ServerConfig,
+	routingRules []xrayconf.RouteRule,
+) []xrayconf.Config {
 	configs := make([]xrayconf.Config, len(servers))
 	for i, srv := range servers {
 		configs[i] = xrayconf.Config{
@@ -29,8 +36,8 @@ func BuildConfigs(clientID string, servers []*ServerConfig, routingRules []xrayc
 	return configs
 }
 
-func buildInbounds() []xrayconf.Inbound {
-	return []xrayconf.Inbound{
+func buildInbounds() []*xrayconf.Inbound {
+	return []*xrayconf.Inbound{
 		{
 			Tag:      "socks",
 			Protocol: "socks",
@@ -55,33 +62,33 @@ func buildInbounds() []xrayconf.Inbound {
 	}
 }
 
-func buildOutbounds(clientID string, srv *ServerConfig) []xrayconf.Outbound {
-	return []xrayconf.Outbound{
+func buildOutbounds(clientID string, srv *ServerConfig) []*xrayconf.Outbound {
+	return []*xrayconf.Outbound{
 		buildProxyOutbound(clientID, srv),
 		{
-			Tag:      "direct",
+			Tag:      hstdlib.DirectTag,
 			Protocol: "freedom",
-			Settings: xrayconf.FreedomSettings{DomainStrategy: "UseIP"},
+			Settings: &xrayconf.OutboundSettings{DomainStrategy: "UseIP"},
 		},
 		{
-			Tag:      "block",
+			Tag:      hstdlib.BlockTag,
 			Protocol: "blackhole",
 		},
 	}
 }
 
-func buildProxyOutbound(clientID string, srv *ServerConfig) xrayconf.Outbound {
+func buildProxyOutbound(clientID string, srv *ServerConfig) *xrayconf.Outbound {
 	if srv.XHTTPPath != "" {
 		return buildXHTTPOutbound(clientID, srv)
 	}
 	return buildRealityOutbound(clientID, srv)
 }
 
-func buildRealityOutbound(clientID string, srv *ServerConfig) xrayconf.Outbound {
-	return xrayconf.Outbound{
-		Tag:      "proxy",
+func buildRealityOutbound(clientID string, srv *ServerConfig) *xrayconf.Outbound {
+	return &xrayconf.Outbound{
+		Tag:      hstdlib.ProxyTag,
 		Protocol: "vless",
-		Settings: xrayconf.VLESSOutboundSettings{
+		Settings: &xrayconf.OutboundSettings{
 			Vnext: []xrayconf.VLESSServer{{
 				Address: srv.Host,
 				Port:    443,
@@ -98,19 +105,19 @@ func buildRealityOutbound(clientID string, srv *ServerConfig) xrayconf.Outbound 
 			REALITYSettings: &xrayconf.RealityConfig{
 				Fingerprint: "chrome",
 				ServerName:  srv.RealitySni,
-				PublicKey:    srv.RealityPbk,
-				PrivateKey:   srv.RealityPbk,
+				PublicKey:   srv.RealityPbk,
+				PrivateKey:  srv.RealityPbk,
 				ShortID:     srv.RealitySid,
 			},
 		},
 	}
 }
 
-func buildXHTTPOutbound(clientID string, srv *ServerConfig) xrayconf.Outbound {
-	return xrayconf.Outbound{
-		Tag:      "proxy",
+func buildXHTTPOutbound(clientID string, srv *ServerConfig) *xrayconf.Outbound {
+	return &xrayconf.Outbound{
+		Tag:      hstdlib.ProxyTag,
 		Protocol: "vless",
-		Settings: xrayconf.VLESSOutboundSettings{
+		Settings: &xrayconf.OutboundSettings{
 			Vnext: []xrayconf.VLESSServer{{
 				Address: srv.Host,
 				Port:    443,

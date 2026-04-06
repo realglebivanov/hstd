@@ -3,11 +3,19 @@ package db
 import (
 	"database/sql"
 
-	"github.com/realglebivanov/hstd/xrayconnectord/internal/link"
+	"github.com/realglebivanov/hstd/hstdlib/sublink"
 	_ "modernc.org/sqlite"
 )
 
-func (d *DB) IsEnabled(l *link.Link) (bool, error) {
+type SublinkInfo struct {
+	Index   int
+	Version int
+	Comment string
+	Enabled bool
+	Devices string
+}
+
+func (d *DB) IsEnabled(l *sublink.Sublink) (bool, error) {
 	row := d.db.QueryRow(
 		`SELECT links.enabled FROM links WHERE links.idx = ?`,
 		l.Index,
@@ -25,7 +33,7 @@ func (d *DB) IsEnabled(l *link.Link) (bool, error) {
 	return isEnabled, nil
 }
 
-func (d *DB) List(count int) ([]link.LinkInfo, error) {
+func (d *DB) List(count int) ([]SublinkInfo, error) {
 	rows, err := d.db.Query(`
 		WITH RECURSIVE g(value) AS (
 			SELECT 0
@@ -47,9 +55,9 @@ func (d *DB) List(count int) ([]link.LinkInfo, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var result []link.LinkInfo
+	var result []SublinkInfo
 	for rows.Next() {
-		var li link.LinkInfo
+		var li SublinkInfo
 		if err := rows.Scan(&li.Index, &li.Comment, &li.Enabled, &li.Devices, &li.Version); err != nil {
 			return nil, err
 		}
@@ -58,14 +66,14 @@ func (d *DB) List(count int) ([]link.LinkInfo, error) {
 	return result, rows.Err()
 }
 
-func (d *DB) TrackDevice(l *link.Link, name string) (*link.LinkInfo, error) {
+func (d *DB) TrackDevice(l *sublink.Sublink, name string) (*SublinkInfo, error) {
 	tx, err := d.db.Begin()
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	var li link.LinkInfo
+	var li SublinkInfo
 	row := tx.QueryRow(
 		`INSERT INTO links (idx) VALUES (?)
 		ON CONFLICT(idx) DO UPDATE SET version = version + 1
@@ -97,14 +105,14 @@ func (d *DB) TrackDevice(l *link.Link, name string) (*link.LinkInfo, error) {
 	return &li, tx.Commit()
 }
 
-func (d *DB) UpdateLink(index int, comment *string, enabled *bool) (*link.LinkInfo, error) {
+func (d *DB) UpdateLink(index int, comment *string, enabled *bool) (*SublinkInfo, error) {
 	tx, err := d.db.Begin()
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
-	var li link.LinkInfo
+	var li SublinkInfo
 	row := tx.QueryRow(`
 		INSERT INTO links (idx, comment, enabled) VALUES (?, COALESCE(?, ''), COALESCE(?, 1))
 		ON CONFLICT(idx) DO UPDATE SET

@@ -4,8 +4,8 @@ type Config struct {
 	Remarks   string         `json:"remarks,omitempty"`
 	Log       LogConfig      `json:"log"`
 	DNS       *DNSConfig     `json:"dns,omitempty"`
-	Inbounds  []Inbound      `json:"inbounds"`
-	Outbounds []Outbound     `json:"outbounds"`
+	Inbounds  []*Inbound     `json:"inbounds"`
+	Outbounds []*Outbound    `json:"outbounds"`
 	Routing   *RoutingConfig `json:"routing,omitempty"`
 }
 
@@ -16,7 +16,8 @@ type LogConfig struct {
 }
 
 type DNSConfig struct {
-	Servers []string `json:"servers"`
+	Servers       []string `json:"servers"`
+	QueryStrategy string   `json:"queryStrategy,omitempty"`
 }
 
 type Inbound struct {
@@ -46,14 +47,15 @@ type VLESSAccount struct {
 }
 
 type Outbound struct {
-	Tag            string        `json:"tag"`
-	Protocol       string        `json:"protocol"`
-	Settings       any           `json:"settings,omitempty"`
-	StreamSettings *StreamConfig `json:"streamSettings,omitempty"`
+	Tag            string            `json:"tag"`
+	Protocol       string            `json:"protocol"`
+	Settings       *OutboundSettings `json:"settings,omitempty"`
+	StreamSettings *StreamConfig     `json:"streamSettings,omitempty"`
 }
 
-type VLESSOutboundSettings struct {
-	Vnext []VLESSServer `json:"vnext"`
+type OutboundSettings struct {
+	Vnext          []VLESSServer `json:"vnext,omitempty"`
+	DomainStrategy string        `json:"domainStrategy,omitempty"`
 }
 
 type VLESSServer struct {
@@ -62,12 +64,10 @@ type VLESSServer struct {
 	Users   []VLESSAccount `json:"users"`
 }
 
-type FreedomSettings struct {
-	DomainStrategy string `json:"domainStrategy,omitempty"`
-}
-
 type SocksSettings struct {
-	UDP bool `json:"udp"`
+	UDP  bool   `json:"udp,omitempty"`
+	Auth string `json:"auth,omitempty"`
+	IP   string `json:"ip,omitempty"`
 }
 
 type StreamConfig struct {

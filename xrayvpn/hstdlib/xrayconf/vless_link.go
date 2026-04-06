@@ -114,7 +114,7 @@ func (l *VLESSLink) Outbound(tag string) Outbound {
 	return Outbound{
 		Tag:      tag,
 		Protocol: "vless",
-		Settings: VLESSOutboundSettings{
+		Settings: &OutboundSettings{
 			Vnext: []VLESSServer{{
 				Address: l.Address,
 				Port:    l.Port,
@@ -164,6 +164,18 @@ func (l *VLESSLink) streamConfig() *StreamConfig {
 			kcp.Header = map[string]string{"type": l.HeaderType}
 		}
 		sc.KCPSettings = kcp
+	case "xhttp":
+		sc.XHTTPSettings = &XHTTPConfig{
+			Path:              l.Path,
+			Mode:              l.Mode,
+			XPaddingBytes:     "10-100",
+			XPaddingObfsMode:  true,
+			XPaddingPlacement: "query",
+			XPaddingKey:       "q",
+			UplinkHTTPMethod:  "PUT",
+			NoGRPCHeader:      true,
+			NoSSEHeader:       true,
+		}
 	}
 
 	switch l.Security {

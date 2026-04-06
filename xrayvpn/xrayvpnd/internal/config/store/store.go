@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"sync"
+
+	"github.com/realglebivanov/hstd/hstdlib/xrayconf"
 )
 
 var mu sync.Mutex
@@ -18,19 +20,19 @@ func GetState() (*State, error) {
 	return loadState()
 }
 
-func GetActiveLink() (string, error) {
+func GetActiveConfig() (*xrayconf.Config, error) {
 	mu.Lock()
 	defer mu.Unlock()
 
 	st, err := loadState()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return st.getActiveLink()
+	return st.getActiveConfig()
 }
 
-func AddLink(link string, rotate bool) error {
+func AddConn(cfg *xrayconf.Config) error {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -39,14 +41,70 @@ func AddLink(link string, rotate bool) error {
 		return err
 	}
 
-	if _, err := st.addLink(link, rotate); err != nil {
+	if _, err := st.addConn(cfg, ""); err != nil {
 		return err
 	}
 
 	return saveState(st)
 }
 
-func RemoveLink(id string) (activeChanged bool, err error) {
+func SyncConns(cfgs map[string][]*xrayconf.Config) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	st, err := loadState()
+	if err != nil {
+		return err
+	}
+	if err := st.syncConns(cfgs); err != nil {
+		return fmt.Errorf("sync conns: %w", err)
+	}
+
+	return saveState(st)
+}
+
+func GetSubs() ([]*Sub, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	st, err := loadState()
+	if err != nil {
+		return nil, err
+	}
+	return st.Subs, nil
+}
+
+func AddSub(url string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	st, err := loadState()
+	if err != nil {
+		return err
+	}
+
+	st.addSub(url)
+
+	return saveState(st)
+}
+
+func RemoveSub(id string) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	st, err := loadState()
+	if err != nil {
+		return err
+	}
+
+	if err := st.removeSub(id); err != nil {
+		return err
+	}
+
+	return saveState(st)
+}
+
+func RemoveConn(id string) (activeChanged bool, err error) {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -55,7 +113,7 @@ func RemoveLink(id string) (activeChanged bool, err error) {
 		return false, err
 	}
 
-	wasActive, err := st.removeLink(id)
+	wasActive, err := st.removeConn(id)
 	if err != nil {
 		return false, err
 	}
@@ -63,7 +121,7 @@ func RemoveLink(id string) (activeChanged bool, err error) {
 	return wasActive, saveState(st)
 }
 
-func ChooseLink(id string) error {
+func ChooseConn(id string) error {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -72,23 +130,8 @@ func ChooseLink(id string) error {
 		return err
 	}
 
-	if err := st.chooseLink(id); err != nil {
+	if err := st.chooseConn(id); err != nil {
 		return err
-	}
-
-	return saveState(st)
-}
-
-func ReplaceDefaultLinks(serverLink, proxyLink string) error {
-	mu.Lock()
-	defer mu.Unlock()
-
-	st, err := loadState()
-	if err != nil {
-		return err
-	}
-	if err := st.replaceDefaultLinks(serverLink, proxyLink); err != nil {
-		return fmt.Errorf("init links: %w", err)
 	}
 
 	return saveState(st)
@@ -97,13 +140,13 @@ func ReplaceDefaultLinks(serverLink, proxyLink string) error {
 func loadState() (*State, error) {
 	data, err := os.ReadFile(statePath)
 	if errors.Is(err, os.ErrNotExist) {
-		return &State{Links: []Link{}, ActiveID: ""}, nil
+		return &State{Conns: []*Conn{}, ActiveID: ""}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("read state file: %w", err)
 	}
 	if len(data) == 0 {
-		return &State{Links: []Link{}, ActiveID: ""}, nil
+		return &State{Conns: []*Conn{}, ActiveID: ""}, nil
 	}
 
 	var st State
