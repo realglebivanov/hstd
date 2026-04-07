@@ -9,11 +9,18 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/realglebivanov/hstd/xrayvpnd/internal/config/repo"
 	"github.com/realglebivanov/hstd/xrayvpnd/internal/supervisor"
 )
 
 func Run() error {
-	s := supervisor.New()
+	db, err := repo.Open()
+	if err != nil {
+		return fmt.Errorf("open store: %w", err)
+	}
+	defer db.Close()
+
+	s := supervisor.New(db)
 
 	if err := s.Start(); err != nil {
 		return fmt.Errorf("initial start: %w", err)

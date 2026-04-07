@@ -71,8 +71,8 @@ type SocksSettings struct {
 }
 
 type StreamConfig struct {
-	Network         string         `json:"network"`
-	Security        string         `json:"security"`
+	Network         string         `json:"network,omitempty"`
+	Security        string         `json:"security,omitempty"`
 	TLSSettings     *TLSConfig     `json:"tlsSettings,omitempty"`
 	REALITYSettings *RealityConfig `json:"realitySettings,omitempty"`
 	TCPSettings     *TCPConfig     `json:"tcpSettings,omitempty"`

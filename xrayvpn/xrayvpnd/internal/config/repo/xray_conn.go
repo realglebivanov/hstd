@@ -1,4 +1,4 @@
-package store
+package repo
 
 import (
 	"crypto/sha256"
@@ -9,24 +9,29 @@ import (
 	"github.com/realglebivanov/hstd/hstdlib/xrayconf"
 )
 
-type Sub struct {
-	ID  string `json:"id"`
-	URL string `json:"url"`
+type XraySub struct {
+	ID  string `db:"id"`
+	URL string `db:"url"`
 }
 
-func NewSub(url string) *Sub {
+func NewXraySub(url string) *XraySub {
 	h := sha256.Sum256([]byte(url))
-	return &Sub{ID: hex.EncodeToString(h[:4]), URL: url}
+	return &XraySub{ID: hex.EncodeToString(h[:4]), URL: url}
 }
 
-type Conn struct {
-	ID     string          `json:"id"`
-	Remark string          `json:"remark"`
-	Config json.RawMessage `json:"config"`
-	SubID  string          `json:"sub_id,omitempty"`
+type XrayConnInfo struct {
+	XrayConn
+	Active bool `db:"active"`
 }
 
-func NewConn(cfg *xrayconf.Config, subID string) (*Conn, error) {
+type XrayConn struct {
+	ID     string `db:"id"`
+	Remark string `db:"remark"`
+	Config string `db:"config"`
+	SubID  string `db:"sub_id"`
+}
+
+func NewXrayConn(cfg *xrayconf.Config, subID string) (*XrayConn, error) {
 	data, err := json.Marshal(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("marshal config: %w", err)
@@ -51,14 +56,14 @@ func NewConn(cfg *xrayconf.Config, subID string) (*Conn, error) {
 	h := sha256.Sum256([]byte(remark))
 	id := hex.EncodeToString(h[:4])
 
-	return &Conn{
+	return &XrayConn{
 		ID:     id,
 		Remark: remark,
-		Config: data,
+		Config: string(data),
 		SubID:  subID,
 	}, nil
 }
 
-func (l *Conn) Summary() string {
-	return l.Remark
+func (c *XrayConn) Summary() string {
+	return c.Remark
 }

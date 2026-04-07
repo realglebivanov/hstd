@@ -6,13 +6,13 @@ import (
 
 	"github.com/realglebivanov/hstd/hstdlib"
 	"github.com/realglebivanov/hstd/hstdlib/xrayconf"
-	"github.com/realglebivanov/hstd/xrayvpnd/internal/config/store"
+	"github.com/realglebivanov/hstd/xrayvpnd/internal/config/repo"
 	core "github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/infra/conf"
 )
 
-func BuildCoreConfig() (*core.Config, error) {
-	cfg, err := store.GetActiveConfig()
+func BuildCoreConfig(db *repo.DB) (*core.Config, error) {
+	cfg, err := db.GetActiveConfig()
 	if err != nil {
 		return nil, fmt.Errorf("active config: %w", err)
 	}

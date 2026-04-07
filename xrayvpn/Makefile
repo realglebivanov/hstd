@@ -29,13 +29,12 @@ deb: build
 	install -Dm644 debian/tun2socksd.service       $(STAGE)/lib/systemd/system/tun2socksd.service
 	install -Dm644 debian/xrayvpnd-refresh.service $(STAGE)/lib/systemd/system/xrayvpnd-refresh.service
 	install -Dm644 debian/xrayvpnd-refresh.timer   $(STAGE)/lib/systemd/system/xrayvpnd-refresh.timer
-	install -Dm644 /dev/null		 	   $(STAGE)/etc/xrayvpn/state.json
+	install -d     						   $(STAGE)/etc/xrayvpn
 	install -d     						   $(STAGE)/DEBIAN
 	install -m755  debian/postinst         $(STAGE)/DEBIAN/postinst
 	install -m755  debian/prerm            $(STAGE)/DEBIAN/prerm
 	install -m755  debian/postrm           $(STAGE)/DEBIAN/postrm
 	cp             debian/control          $(STAGE)/DEBIAN/control
-	echo "/etc/xrayvpn/state.json" > $(STAGE)/DEBIAN/conffiles
 	SOURCE_DATE_EPOCH=0 dpkg-deb --build --root-owner-group $(STAGE)
 	@echo "Package built: target/deb/$(DEB_NAME)"
 

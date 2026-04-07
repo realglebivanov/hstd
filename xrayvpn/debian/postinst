@@ -10,7 +10,8 @@ if ! getent passwd xrayvpn > /dev/null 2>&1; then
             --ingroup xrayvpn xrayvpn
 fi
 
-echo "xrayvpn: set proxy link with: xrayvpn link add <vless://...>"
+echo "xrayvpn: add a sub with: xrayvpn sub add <url>"
+echo "xrayvpn: add a conn with: xrayvpn conn add <vless://...>"
 echo "xrayvpn: to allow a user to control the service, run: usermod -aG xrayvpn <username>"
 
 mkdir -p /run/xrayvpn /var/cache/xrayvpn

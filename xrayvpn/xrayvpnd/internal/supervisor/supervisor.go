@@ -7,6 +7,7 @@ import (
 
 	"github.com/realglebivanov/hstd/hstdlib/dataloader"
 	"github.com/realglebivanov/hstd/xrayvpnd/internal/config"
+	"github.com/realglebivanov/hstd/xrayvpnd/internal/config/repo"
 	"github.com/xtls/xray-core/common/platform"
 	core "github.com/xtls/xray-core/core"
 	_ "github.com/xtls/xray-core/main/distro/all"
@@ -17,13 +18,14 @@ type Supervisor struct {
 	wg        sync.WaitGroup
 	instance  *core.Instance
 	loader    *dataloader.Loader
+	db        *repo.DB
 	RefreshCh chan struct{}
 }
 
-func New() *Supervisor {
+func New(db *repo.DB) *Supervisor {
 	cacheDir := platform.GetAssetLocation("")
 	loader := dataloader.New(cacheDir)
-	return &Supervisor{loader: loader, RefreshCh: make(chan struct{}, 1)}
+	return &Supervisor{loader: loader, db: db, RefreshCh: make(chan struct{}, 1)}
 }
 
 func (s *Supervisor) Start() error {
@@ -65,7 +67,7 @@ func (s *Supervisor) startLocked() error {
 		return fmt.Errorf("load geodata: %w", err)
 	}
 
-	coreConfig, err := config.BuildCoreConfig()
+	coreConfig, err := config.BuildCoreConfig(s.db)
 	if err != nil {
 		return fmt.Errorf("build xray-core config: %w", err)
 	}

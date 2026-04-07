@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/realglebivanov/hstd/hstdlib"
+	"github.com/realglebivanov/hstd/xrayvpnd/internal/config/repo"
 	"github.com/spf13/cobra"
 )
 
@@ -18,6 +19,8 @@ type managedProcess struct {
 }
 
 var (
+	db *repo.DB
+
 	xrayvpndProcess = managedProcess{
 		name:    "daemon",
 		pidFile: hstdlib.XrayVpnPIDFile,
@@ -33,6 +36,11 @@ func main() {
 		Use:          "xrayvpn",
 		Short:        "Control the xrayvpn tunnel and daemon",
 		SilenceUsage: true,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			var err error
+			db, err = repo.Open()
+			return err
+		},
 	}
 
 	root.AddCommand(

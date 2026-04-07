@@ -8,8 +8,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/realglebivanov/hstd/hstdlib"
 	"github.com/realglebivanov/hstd/hstdlib/sublink"
-	"github.com/realglebivanov/hstd/xrayvpnd/internal/config/store"
-	"github.com/realglebivanov/hstd/xrayvpnd/internal/conns"
+	"github.com/realglebivanov/hstd/xrayvpnd/internal/xray_conns"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +24,7 @@ func newSubCmd() *cobra.Command {
 			Short: "Add a subscription URL",
 			Args:  cobra.ExactArgs(1),
 			RunE: func(cmd *cobra.Command, args []string) error {
-				if err := store.AddSub(args[0]); err != nil {
+				if err := db.AddSub(args[0]); err != nil {
 					return err
 				}
 				fmt.Println("subscription added")
@@ -51,7 +50,7 @@ func newSubCmd() *cobra.Command {
 			Short: "Remove a subscription by ID",
 			Args:  cobra.ExactArgs(1),
 			RunE: func(cmd *cobra.Command, args []string) error {
-				if err := store.RemoveSub(args[0]); err != nil {
+				if err := db.RemoveSub(args[0]); err != nil {
 					return err
 				}
 				fmt.Println("subscription removed")
@@ -63,7 +62,7 @@ func newSubCmd() *cobra.Command {
 			Short: "Sync conns from all subscriptions",
 			Args:  cobra.NoArgs,
 			RunE: func(cmd *cobra.Command, args []string) error {
-				n, err := conns.SyncAll()
+				n, err := xray_conns.SyncAll(db)
 				if err != nil {
 					return err
 				}
@@ -79,16 +78,16 @@ func newSubCmd() *cobra.Command {
 			Short: "List all subscriptions",
 			Args:  cobra.NoArgs,
 			RunE: func(cmd *cobra.Command, args []string) error {
-				st, err := store.GetState()
+				subs, err := db.GetSubs()
 				if err != nil {
 					return err
 				}
 				table := tablewriter.NewWriter(os.Stdout)
 				table.Header("ID", "URL")
-				if len(st.Subs) == 0 {
+				if len(subs) == 0 {
 					table.Footer("No subscriptions")
 				}
-				for _, s := range st.Subs {
+				for _, s := range subs {
 					url := s.URL
 					if len(url) > 60 {
 						url = url[:57] + "..."

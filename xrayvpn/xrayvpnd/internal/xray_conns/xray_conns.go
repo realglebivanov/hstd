@@ -1,4 +1,4 @@
-package conns
+package xray_conns
 
 import (
 	"bufio"
@@ -11,19 +11,19 @@ import (
 	"github.com/realglebivanov/hstd/hstdlib"
 	"github.com/realglebivanov/hstd/hstdlib/httpclient"
 	"github.com/realglebivanov/hstd/hstdlib/xrayconf"
-	"github.com/realglebivanov/hstd/xrayvpnd/internal/config/store"
+	"github.com/realglebivanov/hstd/xrayvpnd/internal/config/repo"
 )
 
-func Add(rawURL string) error {
+func Add(db *repo.DB, rawURL string) error {
 	cfg, err := decodeLink(rawURL)
 	if err != nil {
 		return err
 	}
-	return store.AddConn(cfg)
+	return db.AddConn(cfg)
 }
 
-func SyncAll() (int, error) {
-	subs, err := store.GetSubs()
+func SyncAll(db *repo.DB) (int, error) {
+	subs, err := db.GetSubs()
 	if err != nil {
 		return 0, err
 	}
@@ -46,7 +46,7 @@ func SyncAll() (int, error) {
 	}
 
 	if total > 0 {
-		if err := store.SyncConns(cfgs); err != nil {
+		if err := db.SyncConns(cfgs); err != nil {
 			return 0, err
 		}
 	}
