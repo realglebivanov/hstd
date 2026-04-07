@@ -24,7 +24,7 @@ func (d *DB) IsEnabled(l *sublink.Sublink) (bool, error) {
 	var isEnabled bool
 	err := row.Scan(&isEnabled)
 	if err == sql.ErrNoRows {
-		return true, nil
+		return false, nil
 	}
 	if err != nil {
 		return false, err
@@ -43,7 +43,7 @@ func (d *DB) List(count int) ([]SublinkInfo, error) {
 		SELECT
 			g.value,
 			COALESCE(l.comment, ''),
-			COALESCE(l.enabled, 1),
+			COALESCE(l.enabled, 0),
 			COALESCE(GROUP_CONCAT(d.name, char(10)), ''),
 			COALESCE(l.version, 0)
 		FROM g
@@ -114,7 +114,7 @@ func (d *DB) UpdateLink(index int, comment *string, enabled *bool) (*SublinkInfo
 
 	var li SublinkInfo
 	row := tx.QueryRow(`
-		INSERT INTO links (idx, comment, enabled) VALUES (?, COALESCE(?, ''), COALESCE(?, 1))
+		INSERT INTO links (idx, comment, enabled) VALUES (?, COALESCE(?, ''), COALESCE(?, 0))
 		ON CONFLICT(idx) DO UPDATE SET
 			comment = COALESCE(?, links.comment),
 			enabled = COALESCE(?, links.enabled),
