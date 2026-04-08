@@ -87,7 +87,7 @@ func (b *Builder) buildUrlAndQR(info *db.SublinkInfo) (string, string, error) {
 	url := fmt.Sprintf("https://%s:8080/%s", b.ProxyDomain, subPath)
 	png, err := qrcode.Encode(url, qrcode.Highest, 200)
 	if err != nil {
-		return "", "", fmt.Errorf("qr link %d: %v", info.Index, err)
+		return "", "", fmt.Errorf("qr link %d: %w", info.Index, err)
 	}
 	qr := base64.StdEncoding.EncodeToString(png)
 

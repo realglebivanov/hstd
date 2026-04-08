@@ -23,7 +23,9 @@ func New() *CIDRs {
 	loader := datacidrs.NewLoader(stateDir)
 
 	c := &CIDRs{loader: loader}
-	c.loadCIDRs()
+	if err := c.loadCIDRs(); err != nil {
+		c.cidrs.Store([]string{})
+	}
 	return c
 }
 
@@ -60,16 +62,18 @@ func (c *CIDRs) refreshLoop(ctx context.Context, interval time.Duration) {
 	}
 }
 
-func (c *CIDRs) loadCIDRs() {
+func (c *CIDRs) loadCIDRs() error {
 	data, err := c.loader.Load()
 	if err != nil {
 		slog.Error("load CIDRs", "err", err)
-		return
+		return err
 	}
+
 	c.cidrs.Store(data.CIDRs)
 	slog.Info("loaded CIDRs", "count", len(data.CIDRs))
 
 	if data.ShouldRefresh() {
 		c.wg.Go(func() { data.Refresh() })
 	}
+	return nil
 }

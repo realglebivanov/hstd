@@ -73,7 +73,7 @@ func CheckCap(cap int) error {
 	var data [2]unix.CapUserData
 
 	if err := unix.Capget(&hdr, &data[0]); err != nil {
-		return fmt.Errorf("unix.Capget: %v", err)
+		return fmt.Errorf("unix.Capget: %w", err)
 	}
 	if data[cap/32].Effective&(1<<(cap%32)) == 0 && os.Getuid() != 0 {
 		return fmt.Errorf("neither required capability nor root")

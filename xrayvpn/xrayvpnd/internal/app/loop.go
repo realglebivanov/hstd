@@ -83,11 +83,11 @@ func sdNotify(state string) error {
 	}
 	conn, err := net.Dial("unixgram", addr)
 	if err != nil {
-		return fmt.Errorf("sd_notify: %v", err)
+		return fmt.Errorf("sd_notify: %w", err)
 	}
 	defer conn.Close()
 	if _, err := conn.Write([]byte(state)); err != nil {
-		return fmt.Errorf("sd_notify: %v", err)
+		return fmt.Errorf("sd_notify: %w", err)
 	}
 	return nil
 }

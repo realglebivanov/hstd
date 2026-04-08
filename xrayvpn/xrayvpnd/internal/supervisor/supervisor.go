@@ -48,7 +48,7 @@ func (s *Supervisor) Refresh() error {
 	defer s.mu.Unlock()
 
 	if err := s.loader.Refresh(); err != nil {
-		return fmt.Errorf("refresh failed: %v", err)
+		return fmt.Errorf("refresh failed: %w", err)
 	}
 
 	if s.instance == nil {

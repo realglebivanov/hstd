@@ -51,7 +51,7 @@ type subsrvConfig struct {
 func New(rootSecret []byte) (*Server, error) {
 	db, err := db.Open()
 	if err != nil {
-		return nil, fmt.Errorf("open database: %v", err)
+		return nil, fmt.Errorf("open database: %w", err)
 	}
 
 	cfgData, err := os.ReadFile(configPath)
