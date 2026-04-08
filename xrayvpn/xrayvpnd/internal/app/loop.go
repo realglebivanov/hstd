@@ -35,7 +35,7 @@ func Run() error {
 
 	for {
 		select {
-		case <-s.RefreshCh:
+		case <-s.Updates():
 			slog.Info("background refresh done, restarting ...")
 			if err := s.Start(); err != nil {
 				slog.Error("restart after refresh failed", "err", err)

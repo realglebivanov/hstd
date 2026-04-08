@@ -1,6 +1,7 @@
 package cidrs
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -11,15 +12,21 @@ import (
 )
 
 type Loader struct {
-	cache *cache.Cache
+	cache  *cache.Cache
+	Update chan struct{}
 }
 
-func NewLoader(c *datacache.Cache) *Loader {
-	return &Loader{cache: cache.New(c)}
+func NewLoader(cacheDir string) *Loader {
+	return &Loader{
+		cache:  cache.New(datacache.New(cacheDir)),
+		Update: make(chan struct{}, 1),
+	}
 }
 
-func (l *Loader) Load() (cidrs []string, err error) {
-	var missingSrcs []client.Source
+func (l *Loader) Load() (*Data, error) {
+	var missingSrcs []*client.Source
+	var staleSrcs []*client.Source
+	var cidrs []string
 
 	for _, src := range client.Sources {
 		r := l.cache.Read(src.Name)
@@ -27,20 +34,28 @@ func (l *Loader) Load() (cidrs []string, err error) {
 		case cache.Fresh:
 			slog.Info("using fresh CIDRs", "src", src.Name)
 			cidrs = append(cidrs, r.CIDRs...)
-		case cache.Stale, cache.Missing:
-			missingSrcs = append(missingSrcs, src)
+		case cache.Stale:
+			slog.Info("using stale CIDRs", "src", src.Name)
+			staleSrcs = append(staleSrcs, &src)
+			cidrs = append(cidrs, r.CIDRs...)
+		case cache.Missing:
+			missingSrcs = append(missingSrcs, &src)
 		case cache.Error:
 			return nil, fmt.Errorf("read or cache %s: %w", src.Name, r.Err)
 		}
 	}
 
-	missingCIDRs, err := l.refreshSources(missingSrcs)
-	if err != nil {
+	missingSrcCIDRs, errs := l.refreshSources(missingSrcs)
+	if err := errors.Join(errs...); err != nil {
 		slog.Error("refresh missing sources", "err", err)
 		return nil, err
 	}
 
-	return dedup(append(cidrs, missingCIDRs...)), nil
+	return &Data{
+		CIDRs:  dedup(append(cidrs, missingSrcCIDRs...)),
+		stale:  staleSrcs,
+		loader: l,
+	}, nil
 }
 
 type sourceResult struct {
@@ -49,12 +64,12 @@ type sourceResult struct {
 	err   error
 }
 
-func (l *Loader) refreshSources(srcs []client.Source) ([]string, error) {
+func (l *Loader) refreshSources(srcs []*client.Source) ([]string, []error) {
 	results := make([]*sourceResult, len(srcs))
 
 	var wg sync.WaitGroup
 	for i, src := range srcs {
-		wg.Go(func() { results[i] = l.fetchAndCache(&src) })
+		wg.Go(func() { results[i] = l.fetchAndCache(src) })
 	}
 	wg.Wait()
 
@@ -69,11 +84,7 @@ func (l *Loader) refreshSources(srcs []client.Source) ([]string, error) {
 		errs = append(errs, r.err)
 	}
 
-	if len(errs) > 0 {
-		return nil, fmt.Errorf("%d/%d sources failed", len(errs), len(srcs))
-	}
-
-	return allCIDRs, nil
+	return allCIDRs, errs
 }
 
 func (l *Loader) fetchAndCache(src *client.Source) *sourceResult {

@@ -1,25 +1,32 @@
 package geodata
 
-import "log/slog"
+import (
+	"errors"
+	"log/slog"
+)
 
 type Stale struct {
 	stale  []geoFile
 	loader *Loader
 }
 
-func (r *Stale) Refresh(notify chan<- struct{}) {
+func (r *Stale) ShouldRefresh() bool {
+	return len(r.stale) > 0
+}
+
+func (r *Stale) Refresh() {
 	if len(r.stale) == 0 {
 		return
 	}
 
-	for _, f := range r.stale {
-		if err := r.loader.fetchAndCache(f); err != nil {
-			slog.Warn("background geodata refresh failed", "name", f.name, "err", err)
-		}
+	errs := r.loader.fetchAndCacheMany(r.stale)
+	if len(r.stale) == len(errs) {
+		slog.Warn("fetch and cache at least one stale geofile", "err", errors.Join(errs...))
+		return
 	}
 
 	select {
-	case notify <- struct{}{}:
+	case r.loader.Notify <- struct{}{}:
 	default:
 	}
 }

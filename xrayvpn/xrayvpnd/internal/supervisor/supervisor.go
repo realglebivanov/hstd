@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/realglebivanov/hstd/hstdlib/dataloader"
+	"github.com/realglebivanov/hstd/hstdlib/dataloader/geodata"
 	"github.com/realglebivanov/hstd/xrayvpnd/internal/config"
 	"github.com/realglebivanov/hstd/xrayvpnd/internal/config/repo"
 	"github.com/xtls/xray-core/common/platform"
@@ -14,18 +14,21 @@ import (
 )
 
 type Supervisor struct {
-	mu        sync.Mutex
-	wg        sync.WaitGroup
-	instance  *core.Instance
-	loader    *dataloader.Loader
-	db        *repo.DB
-	RefreshCh chan struct{}
+	mu       sync.Mutex
+	wg       sync.WaitGroup
+	instance *core.Instance
+	loader   *geodata.Loader
+	db       *repo.DB
 }
 
 func New(db *repo.DB) *Supervisor {
 	cacheDir := platform.GetAssetLocation("")
-	loader := dataloader.New(cacheDir)
-	return &Supervisor{loader: loader, db: db, RefreshCh: make(chan struct{}, 1)}
+	loader := geodata.NewLoader(cacheDir)
+	return &Supervisor{loader: loader, db: db}
+}
+
+func (s *Supervisor) Updates() chan struct{} {
+	return s.loader.Notify
 }
 
 func (s *Supervisor) Start() error {
@@ -44,7 +47,7 @@ func (s *Supervisor) Refresh() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if err := s.loader.RefreshGeodata(); err != nil {
+	if err := s.loader.Refresh(); err != nil {
 		return fmt.Errorf("refresh failed: %v", err)
 	}
 
@@ -62,7 +65,7 @@ func (s *Supervisor) startLocked() error {
 		return err
 	}
 
-	geoStale, err := s.loader.LoadGeodata()
+	geoStale, err := s.loader.Load()
 	if err != nil {
 		return fmt.Errorf("load geodata: %w", err)
 	}
@@ -85,7 +88,9 @@ func (s *Supervisor) startLocked() error {
 
 	slog.Info("xray-core started")
 
-	s.wg.Go(func() { geoStale.Refresh(s.RefreshCh) })
+	if geoStale.ShouldRefresh() {
+		s.wg.Go(func() { geoStale.Refresh() })
+	}
 
 	return nil
 }

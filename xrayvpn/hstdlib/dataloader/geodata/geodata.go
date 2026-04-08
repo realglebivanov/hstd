@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"slices"
 	"sync"
 
 	"github.com/realglebivanov/hstd/hstdlib/dataloader/cache"
@@ -21,6 +22,7 @@ type geoFile struct {
 type Loader struct {
 	cache   *cache.Cache
 	clients []*http.Client
+	Notify  chan struct{}
 }
 
 const baseGeodataURL = "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/"
@@ -30,10 +32,11 @@ var geoFiles = []geoFile{
 	{baseGeodataURL + "geosite.dat", "geosite.dat"},
 }
 
-func NewLoader(cache *cache.Cache) *Loader {
+func NewLoader(cacheDir string) *Loader {
 	return &Loader{
-		cache:   cache,
+		cache:   cache.New(cacheDir),
 		clients: []*http.Client{httpclient.Default, httpclient.Direct},
+		Notify:  make(chan struct{}, 1),
 	}
 }
 
@@ -59,17 +62,26 @@ func (l *Loader) Load() (*Stale, error) {
 }
 
 func (l *Loader) Refresh() error {
+	errs := l.fetchAndCacheMany(geoFiles)
+	return errors.Join(errs...)
+}
+
+func (l *Loader) fetchAndCacheMany(geoFiles []geoFile) []error {
 	errs := make([]error, len(geoFiles))
 
 	var wg sync.WaitGroup
 	for i, f := range geoFiles {
 		wg.Go(func() {
-			errs[i] = l.fetchAndCache(f)
+			err := l.fetchAndCache(f)
+			if err != nil {
+				slog.Warn("fetch and cache geofile", "name", f.name, "err", err)
+			}
+			errs[i] = err
 		})
 	}
 	wg.Wait()
 
-	return errors.Join(errs...)
+	return slices.DeleteFunc(errs, func(err error) bool { return err == nil })
 }
 
 func (l *Loader) fetchAndCache(f geoFile) error {

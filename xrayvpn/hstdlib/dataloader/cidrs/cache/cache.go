@@ -36,7 +36,11 @@ func (c *Cache) Read(srcName string) *ReadResult {
 	cr := c.store.Read(name)
 	switch cr.State {
 	case datacache.CacheStale:
-		return &ReadResult{Status: Stale}
+		cidrs, err := unmarshalCIDRs(cr.Data)
+		if err != nil {
+			return &ReadResult{Status: Error, Err: err}
+		}
+		return &ReadResult{Status: Stale, CIDRs: cidrs}
 	case datacache.CacheFresh:
 		cidrs, err := unmarshalCIDRs(cr.Data)
 		if err != nil {
