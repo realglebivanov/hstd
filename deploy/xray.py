@@ -1,4 +1,15 @@
-xray_version = "26.3.27"
+import re, os
+
+def _xray_version_from_gomod():
+    gomod = os.path.join(os.path.dirname(__file__), "..", "xrayvpn", "xrayvpnd", "go.mod")
+    with open(gomod) as f:
+        for line in f:
+            m = re.search(r"github\.com/xtls/xray-core v1\.(\d{2})(\d{2})(\d{2})\.\d+", line)
+            if m:
+                return f"{int(m.group(1))}.{int(m.group(2))}.{int(m.group(3))}"
+    raise RuntimeError("xray-core version not found in xrayvpnd/go.mod")
+
+xray_version = _xray_version_from_gomod()
 
 xray_xhttpserver_addr = "5.252.21.248"
 xray_server_addr = "80.71.157.96"
