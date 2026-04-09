@@ -1,11 +1,13 @@
 # hstd Deployment Guide
 
+> This project is for educational purposes only. It is not intended for use in circumventing lawful restrictions or enabling unauthorized access to networks or services.
+
 This repository currently has four deployable roles:
 
 1. `xray_server`: the required public VLESS+REALITY server.
 2. `xray_proxy`: the required TCP proxy for `xray_server`, plus the HTTPS subscription/admin service.
 3. `xray_xhttpserver`: an optional VLESS+XHTTP+TLS server meant to sit behind a CDN.
-4. `hstd`: an optional local Debian router/client that runs `xrayvpn`, Wi-Fi AP services, Transmission, and Navidrome.
+4. `hstd`: an optional local Debian router/client that runs `xrayvpnd`, Wi-Fi AP services, Transmission, and Navidrome.
 
 `inventories/all.py` deploys all four roles. The minimal public deployment is `xray_server` plus `xray_proxy`.
 
@@ -28,7 +30,7 @@ This repository currently has four deployable roles:
                             |
                           hstd
                 local router/client (optional)
-      xrayvpn + tun2socksd + dnsmasq + hostapd + Navidrome
+      xrayvpnd + tun2socksd + dnsmasq + hostapd + Navidrome
 ```
 
 `subsrv` exposes server configs defined in the `servers` list of `subsrv_config` in `inventories/xray_proxy.py`. The default configuration provides three entries:
@@ -174,6 +176,8 @@ Notes:
 Replace the sample values with your own:
 
 ```python
+xray_version = "26.3.27"
+
 xray_xhttpserver_addr = "YOUR_XHTTPSERVER_IP"
 xray_server_addr = "YOUR_XRAY_SERVER_IP"
 xray_proxy_addr = "YOUR_XRAY_PROXY_IP"
@@ -182,22 +186,28 @@ reality_pbk = "YOUR_REALITY_PUBLIC_KEY"
 reality_sni = "example.com"
 reality_sid = "YOUR_REALITY_SHORT_ID"
 
+proxy_domain = "x.example.com"
 xhttp_source_domain = "cdn.example.com"
 xhttp_cdn_domain = "pub.cdn.example.com"
 xhttp_path = "/cdn"
+
+letsencrypt_email = "you@example.com"
 ```
 
 These values are imported by inventory files and used to populate host variables. What each field is used for:
 
+- `xray_version`: version of xray-core installed on `xray_server` and `xray_xhttpserver`
 - `xray_server_addr`: direct REALITY server address
 - `xray_proxy_addr`: TCP proxy IP used by the proxied REALITY config
 - `xray_xhttpserver_addr`: XHTTP origin server IP for the optional CDN-fronted path
 - `reality_pbk`: public half of the REALITY key pair
 - `reality_sni`: REALITY SNI and destination hostname base
 - `reality_sid`: short ID advertised to clients
+- `proxy_domain`: hostname for the HTTPS subscription/admin service
 - `xhttp_source_domain`: certificate/origin hostname on the optional `xray_xhttpserver`
 - `xhttp_cdn_domain`: CDN hostname given to clients for the optional XHTTP config
 - `xhttp_path`: XHTTP path used by the optional XHTTP server and client config
+- `letsencrypt_email`: email for Let's Encrypt certificate registration
 
 ### 2. Update inventory files
 
@@ -228,12 +238,13 @@ Current inventory-specific knobs:
 - `xray_server_addr`
 - `rotate_secret`
 - `proxy_domain`
+- `letsencrypt_email`
 - `sub_path`
 - `admin_user`
 - `admin_password_hash`
 - `subsrv_config`
 
-Only `proxy_domain` is edited directly in the inventory by default. The other values come from `deploy/xray.py` and `pass`.
+`proxy_domain` and `letsencrypt_email` come from `deploy/xray.py`. The other non-secret values also come from `deploy/xray.py`, and the secrets come from `pass`.
 
 `subsrv_config` is a dict that gets deployed as `/etc/subsrv/config.json`. It defines the server entries and client routing rules that `subsrv` serves to subscribers. The structure contains:
 
@@ -246,6 +257,7 @@ Only `proxy_domain` is edited directly in the inventory by default. The other va
 - `rotate_secret`
 - `xhttp_source_domain`
 - `xhttp_path`
+- `letsencrypt_email`
 
 #### `inventories/hstd.py`
 
@@ -266,12 +278,8 @@ If you use `hstd`, audit these fields carefully:
 - `apd_dev`
 - `lan_dev`
 - `tun_dev`
-- `rotate_secret`
-- `xray_server_addr`
-- `xray_proxy_addr`
-- `reality_pbk`
-- `reality_sni`
-- `reality_sid`
+
+The `hstd` role no longer carries REALITY or xray server parameters directly. Instead, it adds a subscription URL during deploy and uses `xrayvpn sub sync` to fetch connections from `subsrv`.
 
 ### 3. Review hardcoded repo-specific defaults
 
@@ -367,8 +375,9 @@ pyinfra inventories/hstd.py deploy.py
 - installs `nftables`, `dnsmasq`, `hostapd`, `transmission-daemon`, `ffmpeg`, `curl`, `rsync`, `networkd-dispatcher`, `systemd-resolved`, `dns-root-data`, and `firmware-misc-nonfree`
 - downloads and installs Navidrome `0.60.3`
 - configures `systemd-networkd`, nftables, dnsmasq, hostapd, Transmission, Navidrome, and the `xrayvpn` systemd overrides
-- enables `xrayvpnd`, `tun2socksd`, `dnsmasq`, `hostapd`, `navidrome`, `transmission-daemon`, `ssh`, `systemd-networkd`, `networkd-dispatcher`, `systemd-resolved`, `clientrotate.timer`, and related services
-- initializes the default direct/proxy VLESS links through `clientrotate.service`
+- adds a subscription URL pointing at `subsrv` and runs `xrayvpn sub sync` to fetch initial connections
+- runs `clientrotate.service` to perform an initial client rotation
+- enables `xrayvpnd`, `nftables`, `dnsmasq`, `hostapd`, `navidrome`, `transmission-daemon`, `ssh`, `systemd-networkd`, `networkd-dispatcher`, `systemd-resolved`, `clientrotate.timer`, and related services
 
 ## Verify
 
@@ -434,7 +443,8 @@ systemctl status networkd-dispatcher
 Useful local checks on `hstd`:
 
 ```bash
-xrayvpn link list
+xrayvpn conn list
+xrayvpn sub list
 xrayvpn start
 xrayvpn stop
 xrayvpn refresh
@@ -446,9 +456,9 @@ xrayvpn refresh
 
 `subsrv` listens on `:8080` with HTTPS. It is not behind nginx. It reads its server entries and routing rules from `/etc/subsrv/config.json` (deployed from `subsrv_config` in the inventory). It serves:
 
-- `GET /admin/`: admin page
+- `GET /admin/`: admin page (cookie-based session auth)
 - `GET /admin/ws`: websocket feed for admin updates
-- `GET /<link>`: JSON subscription response
+- `GET /{link}`: JSON subscription response
 
 The admin page currently manages a fixed pool of `100` link slots. It can:
 
@@ -456,6 +466,8 @@ The admin page currently manages a fixed pool of `100` link slots. It can:
 - edit a comment
 - show the encoded URL and QR code for each slot
 - track devices seen in the last 24 hours
+
+`subsrv` also periodically refreshes Russian CIDR data (every 2 hours) and injects it into the `cidr:ru` routing rules in generated client configs.
 
 ### UUID rotation
 
@@ -467,21 +479,23 @@ The project derives client UUIDs deterministically from:
 
 The server-side `clientrotate` binaries write the current UUID set into the Xray configs on `xray_server` and on `xray_xhttpserver` when that optional role is deployed. `subsrv` derives the matching UUIDs on demand, so clients that refresh their subscription get the right values automatically.
 
+Each rotation produces 200 UUIDs: 100 for the current day and 100 for the previous day, ensuring a graceful transition window.
+
 ### Split routing in subscription client configs
 
 The JSON configs returned by `subsrv` include routing rules defined in the `routingRules` field of `/etc/subsrv/config.json` (configured via `subsrv_config` in the inventory). This split routing is separate from the Linux-level split routing on `hstd`.
 
 Each generated client config currently contains:
 
-- local SOCKS and HTTP inbounds on `127.0.0.1:10808` and `127.0.0.1:10809`
+- a local SOCKS inbound on `127.0.0.1:10808`
 - a `direct` outbound
 - a `proxy` outbound using one of the advertised server entries
 - a `block` outbound
 
 The default routing rules in the inventory currently do this:
 
-- force `domain:yonote.ru` through the proxy
-- send `geoip:ru` and `geoip:private` directly
+- force `domain:yonote.ru` and `domain:hstd.space` through the proxy
+- send `geoip:ru`, `geoip:private`, and `cidr:ru` directly
 - send `geosite:category-ru` and `geosite:category-gov-ru` directly
 - send all remaining `tcp` and `udp` traffic through the proxy
 
@@ -489,18 +503,7 @@ These rules can be changed by editing the `routingRules` list in `inventories/xr
 
 ### `hstd`
 
-The `hstd` host does not consume the HTTPS subscription endpoint. Instead, its `clientrotate.service` runs:
-
-```bash
-xrayvpn link init -- <secret> <server-host> <proxy-host> <pbk> <sni> <sid>
-```
-
-That initializes two managed links on the local router/client:
-
-1. direct REALITY to `xray_server_addr`
-2. proxied REALITY to `xray_proxy_addr`
-
-The optional CDN-fronted XHTTP config is currently only exposed through `subsrv` for mobile clients.
+The `hstd` host consumes the HTTPS subscription endpoint. During deploy, a subscription URL is added via `xrayvpn sub add`, and `clientrotate.service` runs `xrayvpn sub sync` to fetch connections from `subsrv`. The `clientrotate.timer` periodically re-syncs to pick up rotated UUIDs.
 
 ### Included traffic-splitting rules on `hstd`
 
@@ -517,8 +520,8 @@ Inside `xrayvpnd`, the active outbound selection is also split by protocol and d
 
 - BitTorrent traffic goes direct.
 - FTP ports `20-21` go direct.
-- Traffic to the downloaded Russian CIDR set, plus `geoip:ru` and `geoip:private`, goes direct.
 - DNS traffic to `8.8.8.8`, `8.8.4.4`, and `1.1.1.1` goes direct.
+- Traffic matching the subscription's routing rules (Russian CIDRs, geoip, geosite) goes direct.
 - Remaining `tcp` and `udp` traffic goes through the currently selected VLESS outbound.
 
 In practice, that means:
@@ -556,5 +559,5 @@ Edit `deploy/templates/hstd/hostapd.conf.j2`. The SSID, channel settings, and co
 - Change server IPs, domains, and REALITY parameters in `deploy/xray.py`, then redeploy the affected roles.
 - Change SSH users and role-specific host data in the inventory files, then redeploy.
 - Certificates renew automatically via `certbot.timer` on `xray_proxy` and on `xray_xhttpserver` if deployed.
-- `xrayvpn refresh` refreshes geodata/CIDR data on `hstd`.
+- `xrayvpn refresh` refreshes geodata on `hstd`.
 - If you rotate the REALITY key pair, update both `deploy/xray.py` and `hstd/xray_server/reality_private_key`, then redeploy `xray_server`, `xray_proxy`, and `hstd` if used.
