@@ -6,6 +6,7 @@ from pyinfra import host
 from pyinfra.facts.server import Command
 from pyinfra.facts.files import Sha256File
 from deploy.triggers import notify
+from deploy.xray import xray_version
 
 _APT_ENV = {"DEBIAN_FRONTEND": "noninteractive"}
 
@@ -18,13 +19,11 @@ for pkg in [
 ]: notify(pkg, apt.packages(
     name=f"Install {pkg}", packages=[pkg], present=True, _env=_APT_ENV))
 
-XRAY_VERSION = "26.3.27"
-
 installed_version = host.get_fact(Command, "xray version 2>/dev/null | head -1 | awk '{print $2}'")
-if installed_version != XRAY_VERSION:
+if installed_version != xray_version:
     notify("xray", server.shell(
-        name=f"Install xray-core v{XRAY_VERSION}",
-        commands=[f'bash -c "$(curl -fsSL https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install --version {XRAY_VERSION}']))
+        name=f"Install xray-core v{xray_version}",
+        commands=[f'bash -c "$(curl -fsSL https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install --version {xray_version}']))
 
 CLIENTROTATE_LOCAL = "xrayvpn/target/clientrotate"
 CLIENTROTATE_REMOTE = "/usr/local/bin/clientrotate"

@@ -1,3 +1,5 @@
+xray_version = "26.3.27"
+
 xray_xhttpserver_addr = "5.252.21.248"
 xray_server_addr = "80.71.157.96"
 xray_proxy_addr = "158.160.19.75"
