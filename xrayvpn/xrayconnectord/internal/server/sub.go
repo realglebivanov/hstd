@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/realglebivanov/hstd/hstdlib/ruapps"
 	"github.com/realglebivanov/hstd/hstdlib/secret"
 	"github.com/realglebivanov/hstd/hstdlib/sublink"
 	"github.com/realglebivanov/hstd/hstdlib/xrayconf"
@@ -60,6 +61,10 @@ func (s *Server) handleSubReq(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("profile-update-interval", "1")
 	w.Header().Set("profile-title", "base64:"+base64.StdEncoding.EncodeToString([]byte("hstd")))
+	w.Header().Set("announce", "base64:"+base64.StdEncoding.EncodeToString([]byte("Не делитесь ссылкой на подписку — иначе она может быть заблокирована")))
+	w.Header().Set("hide-settings", "1")
+	w.Header().Set("per-app-proxy-mode", "bypass")
+	w.Header().Set("per-app-proxy-list", ruapps.Joined())
 
 	if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 		w.Header().Set("Content-Encoding", "gzip")
