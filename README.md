@@ -189,7 +189,7 @@ reality_sid = "YOUR_REALITY_SHORT_ID"
 proxy_domain = "x.example.com"
 xhttp_source_domain = "cdn.example.com"
 xhttp_cdn_domain = "pub.cdn.example.com"
-xhttp_path = "/cdn"
+xhttp_path = "/images/625385d043bfac1b"
 
 letsencrypt_email = "you@example.com"
 ```

@@ -22,6 +22,6 @@ reality_sid = "e2174ad2204ca5c5"
 proxy_domain = "x.hstd.space"
 xhttp_source_domain = "cdn.hstd.space"
 xhttp_cdn_domain = "pub.cdn.hstd.space"
-xhttp_path = "/cdn"
+xhttp_path = "/images/625385d043bfac1b"
 
 letsencrypt_email = "realglebivanov@gmail.com"
