@@ -25,3 +25,10 @@ xhttp_cdn_domain = "pub.cdn.hstd.space"
 xhttp_path = "/images/625385d043bfac1b"
 
 letsencrypt_email = "realglebivanov@gmail.com"
+
+routing_rules = [
+    {"type": "field", "outboundTag": "proxy", "domain": ["domain:yonote.ru", "domain:hstd.space"]},
+    {"type": "field", "outboundTag": "direct", "ip": ["geoip:ru", "geoip:private", "cidr:ru"]},
+    {"type": "field", "outboundTag": "direct", "domain": ["geosite:category-ru", "geosite:category-gov-ru"]},
+    {"type": "field", "outboundTag": "proxy", "network": "tcp,udp"},
+]

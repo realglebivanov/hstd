@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/realglebivanov/hstd/hstdlib/httpclient"
 )
@@ -28,26 +29,40 @@ var Sources = []Source{
 	{"afrinic", "https://ftp.afrinic.net/pub/stats/afrinic/delegated-afrinic-extended-latest"},
 }
 
-func FetchSource(src *Source) ([]string, error) {
+func FetchSources(srcs []Source, fn func(*Source) *FetchResult) ([]string, []error) {
+	results := make([]*FetchResult, len(srcs))
+	var wg sync.WaitGroup
+	for i, src := range srcs {
+		wg.Go(func() { results[i] = fn(&src) })
+	}
+	wg.Wait()
+	return toCIDRs(results)
+}
+
+func FetchSource(src *Source) *FetchResult {
 	slog.Info("fetching RU CIDRs", "src", src.Name)
 
 	resp, err := httpclient.Default.Get(src.URL)
 	if err != nil {
-		return nil, fmt.Errorf("fetch %s: %w", src.URL, err)
+		slog.Warn("failed to fetch", "src", src.Name, "err", err)
+		return &FetchResult{Err: err}
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetch %s: HTTP %d", src.URL, resp.StatusCode)
+		err := fmt.Errorf("fetch %s: HTTP %d", src.URL, resp.StatusCode)
+		slog.Warn("failed to fetch", "src", src.Name, "err", err)
+		return &FetchResult{Err: err}
 	}
 
 	cidrs, err := parseCIDRs(resp.Body)
 	if err != nil {
-		return nil, err
+		slog.Warn("failed to parse", "src", src.Name, "err", err)
+		return &FetchResult{Err: err}
 	}
 
 	slog.Info("fetched RU CIDRs", "count", len(cidrs), "src", src.Name)
-	return cidrs, nil
+	return &FetchResult{CIDRs: cidrs}
 }
 
 func parseCIDRs(r io.Reader) ([]string, error) {

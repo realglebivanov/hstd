@@ -34,12 +34,7 @@ hosts = [
                     "xhttpPath": xray.xhttp_path,
                 },
             ],
-            "routingRules": [
-                {"type": "field", "outboundTag": "proxy", "domain": ["domain:yonote.ru", "domain:hstd.space"]},
-                {"type": "field", "outboundTag": "direct", "ip": ["geoip:ru", "geoip:private", "cidr:ru"]},
-                {"type": "field", "outboundTag": "direct", "domain": ["geosite:category-ru", "geosite:category-gov-ru"]},
-                {"type": "field", "outboundTag": "proxy", "network": "tcp,udp"},
-            ],
+            "routingRules": xray.routing_rules,
         },
     }),
 ]

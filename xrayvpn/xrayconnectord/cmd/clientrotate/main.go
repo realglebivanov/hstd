@@ -2,11 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 
 	"github.com/realglebivanov/hstd/hstdlib"
+	"github.com/realglebivanov/hstd/hstdlib/dataloader/cidrs"
 	"github.com/realglebivanov/hstd/hstdlib/secret"
 	"github.com/realglebivanov/hstd/hstdlib/xrayconf"
 )
@@ -31,21 +33,54 @@ func main() {
 	uuids := secret.GenerateGracefulClientUUIDs(scrt)
 	slog.Info("rotating client_id", "clients", len(uuids), "flow", flow)
 
-	if err := rotate(uuids, flow); err != nil {
+	rules, err := loadRoutingRules()
+	if err != nil {
+		slog.Error("load routing rules", "err", err)
+	}
+
+	if err := rotate(uuids, flow, rules); err != nil {
 		slog.Error("rotate", "err", err)
 		os.Exit(1)
 	}
 }
 
-const configPath = "/usr/local/etc/xray/config.json"
+const (
+	xrayConfigPath         = "/usr/local/etc/xray/config.json"
+	clientrotateConfigPath = "/etc/clientrotate/config.json"
+)
 
-func rotate(uuids []string, flow string) error {
-	fi, err := os.Stat(configPath)
+type clientrotateConfig struct {
+	RoutingRules []xrayconf.RouteRule `json:"routingRules"`
+}
+
+func loadRoutingRules() ([]xrayconf.RouteRule, error) {
+	data, err := os.ReadFile(clientrotateConfigPath)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", clientrotateConfigPath, err)
+	}
+	var cfg clientrotateConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("parse %s: %w", clientrotateConfigPath, err)
+	}
+
+	ruCIDRs, errs := cidrs.FetchAll()
+	if err := errors.Join(errs...); err != nil {
+		return nil, fmt.Errorf("fetch RU CIDRs: %w", err)
+	}
+	slog.Info("fetched RU CIDRs", "count", len(ruCIDRs))
+
+	inverted := xrayconf.InvertRules(cfg.RoutingRules)
+
+	return xrayconf.ExpandRules(inverted, ruCIDRs), nil
+}
+
+func rotate(uuids []string, flow string, rules []xrayconf.RouteRule) error {
+	fi, err := os.Stat(xrayConfigPath)
 	if err != nil {
 		return fmt.Errorf("stat config: %w", err)
 	}
 
-	data, err := os.ReadFile(configPath)
+	data, err := os.ReadFile(xrayConfigPath)
 	if err != nil {
 		return fmt.Errorf("read config: %w", err)
 	}
@@ -69,16 +104,30 @@ func rotate(uuids []string, flow string) error {
 		}
 	}
 
+	cfg.Outbounds = []*xrayconf.Outbound{
+		{
+			Tag:      hstdlib.BlockTag,
+			Protocol: "blackhole",
+		},
+		{
+			Tag:      hstdlib.DirectTag,
+			Protocol: "freedom",
+		},
+	}
+	cfg.Routing = &xrayconf.RoutingConfig{
+		Rules: rules,
+	}
+
 	out, err := json.MarshalIndent(cfg, "", "    ")
 	if err != nil {
 		return fmt.Errorf("marshal config: %w", err)
 	}
 	out = append(out, '\n')
 
-	if err := os.WriteFile(configPath, out, fi.Mode()); err != nil {
+	if err := os.WriteFile(xrayConfigPath, out, fi.Mode()); err != nil {
 		return fmt.Errorf("write config: %w", err)
 	}
 
-	slog.Info("updated", "path", configPath)
+	slog.Info("updated", "path", xrayConfigPath)
 	return nil
 }

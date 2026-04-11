@@ -1,3 +1,7 @@
+import json
+from io import StringIO
+
+from pyinfra import host
 from pyinfra.operations import files, server
 from deploy.triggers import notify
 
@@ -61,6 +65,17 @@ files.template(
 server.shell(
     name="Apply sysctl tuning",
     commands=["sysctl -p /etc/sysctl.d/99-xray.conf"])
+
+files.directory(
+    name="Create /etc/clientrotate",
+    path="/etc/clientrotate",
+    present=True, mode="0755", user="root", group="root")
+
+notify("clientrotate", files.put(
+    name="Deploy clientrotate config",
+    src=StringIO(json.dumps({"routingRules": host.data.routing_rules})),
+    dest="/etc/clientrotate/config.json",
+    mode="0644", user="root", group="root"))
 
 notify("clientrotate", files.template(
     name="Deploy clientrotate.service",

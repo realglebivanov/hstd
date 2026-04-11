@@ -9,5 +9,6 @@ hosts = [
         "reality_short_id": xray.reality_sid,
         "reality_private_key": passwd.reality_private_key,
         "rotate_secret": passwd.rotate_secret,
+        "routing_rules": xray.routing_rules,
     }),
 ]

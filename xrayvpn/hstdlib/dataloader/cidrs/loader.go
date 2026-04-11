@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"sync"
 
 	"github.com/realglebivanov/hstd/hstdlib/dataloader/cache"
 	"github.com/realglebivanov/hstd/hstdlib/dataloader/cidrs/client"
@@ -24,9 +23,9 @@ func NewLoader(cacheDir string) *Loader {
 	}
 }
 
-func (l *Loader) Load() (*Data, error) {
-	var missingSrcs []*client.Source
-	var staleSrcs []*client.Source
+func (l *Loader) Load() (*LoadResult, error) {
+	var missingSrcs []client.Source
+	var staleSrcs []client.Source
 	var cidrs []string
 
 	for _, src := range client.Sources {
@@ -45,68 +44,43 @@ func (l *Loader) Load() (*Data, error) {
 			if err != nil {
 				return nil, fmt.Errorf("parse cached %s: %w", src.Name, err)
 			}
-			staleSrcs = append(staleSrcs, &src)
+			staleSrcs = append(staleSrcs, src)
 			cidrs = append(cidrs, parsed...)
 		case cache.CacheMissing:
-			missingSrcs = append(missingSrcs, &src)
+			missingSrcs = append(missingSrcs, src)
 		case cache.CacheError:
 			return nil, fmt.Errorf("read or cache %s: %w", src.Name, r.Err)
 		}
 	}
 
-	missingSrcCIDRs, errs := l.refreshSources(missingSrcs)
+	missingSrcCIDRs, errs := client.FetchSources(client.Sources, l.fetchAndCache)
 	if err := errors.Join(errs...); err != nil {
 		slog.Error("refresh missing sources", "err", err)
 		return nil, err
 	}
 
-	return &Data{
+	return &LoadResult{
 		CIDRs:  dedup(append(cidrs, missingSrcCIDRs...)),
 		stale:  staleSrcs,
 		loader: l,
 	}, nil
 }
 
-type sourceResult struct {
-	src   *client.Source
-	cidrs []string
-	err   error
+func FetchAll() ([]string, []error) {
+	return client.FetchSources(client.Sources, client.FetchSource)
 }
 
-func (l *Loader) refreshSources(srcs []*client.Source) ([]string, []error) {
-	results := make([]*sourceResult, len(srcs))
-
-	var wg sync.WaitGroup
-	for i, src := range srcs {
-		wg.Go(func() { results[i] = l.fetchAndCache(src) })
+func (l *Loader) fetchAndCache(src *client.Source) *client.FetchResult {
+	r := client.FetchSource(src)
+	if r.Err != nil {
+		return r
 	}
-	wg.Wait()
-
-	var allCIDRs []string
-	var errs []error
-	for _, r := range results {
-		if r.err == nil {
-			allCIDRs = append(allCIDRs, r.cidrs...)
-			continue
-		}
-		slog.Warn("failed to fetch", "src", r.src.Name, "err", r.err)
-		errs = append(errs, r.err)
-	}
-
-	return allCIDRs, errs
-}
-
-func (l *Loader) fetchAndCache(src *client.Source) *sourceResult {
-	cidrs, err := client.FetchSource(src)
-	if err != nil {
-		return &sourceResult{src: src, err: err}
-	}
-	if err := l.cache.Write(cacheName(src.Name), marshalCIDRs(cidrs)); err != nil {
+	if err := l.cache.Write(cacheName(src.Name), marshalCIDRs(r.CIDRs)); err != nil {
 		slog.Warn("failed to write cache", "src", src.Name, "err", err)
-		return &sourceResult{src: src, err: err}
+		return r
 	}
-	slog.Info("wrote CIDRs to cache", "count", len(cidrs), "src", src.Name)
-	return &sourceResult{src: src, cidrs: cidrs}
+	slog.Info("wrote CIDRs to cache", "count", len(r.CIDRs), "src", src.Name)
+	return r
 }
 
 func cacheName(srcName string) string {
