@@ -5,12 +5,16 @@ import "github.com/realglebivanov/hstd/hstdlib"
 func InvertRules(rules []RouteRule) []RouteRule {
 	var out []RouteRule
 	for _, r := range rules {
-		if r.OutboundTag != hstdlib.DirectTag {
+		switch r.OutboundTag {
+		case hstdlib.DirectTag:
+			r.OutboundTag = hstdlib.BlockTag
+		case hstdlib.ProxyTag:
+			r.OutboundTag = hstdlib.DirectTag
+		default:
 			continue
 		}
-		inv := r
-		inv.OutboundTag = hstdlib.BlockTag
-		out = append(out, inv)
+
+		out = append(out, r)
 	}
 	out = append(out, RouteRule{
 		Type:        "field",
