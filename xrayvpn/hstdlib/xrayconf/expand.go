@@ -3,14 +3,19 @@ package xrayconf
 import "github.com/realglebivanov/hstd/hstdlib"
 
 func InvertRules(rules []RouteRule) []RouteRule {
-	var out []RouteRule
-	for _, r := range rules {
-		if r.OutboundTag != hstdlib.DirectTag {
+	out := make([]RouteRule, len(rules)+1)
+
+	for i, r := range rules {
+		switch r.OutboundTag {
+		case hstdlib.DirectTag:
+			r.OutboundTag = hstdlib.BlockTag
+		case hstdlib.ProxyTag:
+			r.OutboundTag = hstdlib.DirectTag
+		default:
 			continue
 		}
-		inv := r
-		inv.OutboundTag = hstdlib.BlockTag
-		out = append(out, inv)
+
+		out[i] = r
 	}
 	out = append(out, RouteRule{
 		Type:        "field",
