@@ -16,16 +16,6 @@ notify("systemd-journald", files.put(
     dest="/etc/systemd/journald.conf.d/retention.conf",
     mode="0644", user="root", group="root"))
 
-server.group(
-    name="Create xray-cert group",
-    group="xray-cert", system=True)
-
-server.user(
-    name="Create xray system user",
-    user="xray", system=True, shell="/usr/sbin/nologin",
-    home="/nonexistent", create_home=False, ensure_home=False,
-    groups=["xray-cert"])
-
 server.shell(
     name="Grant xray-cert group access to Let's Encrypt certs",
     commands=[

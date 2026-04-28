@@ -20,11 +20,22 @@ for pkg in [
 ]: notify(pkg, apt.packages(
     name=f"Install {pkg}", packages=[pkg], present=True, _env=_APT_ENV))
 
+server.group(
+    name="Create xray-cert group",
+    group="xray-cert", system=True)
+
+server.user(
+    name="Create xray system user",
+    user="xray", system=True, shell="/usr/sbin/nologin",
+    home="/nonexistent", create_home=False, ensure_home=False,
+    groups=["xray-cert"])
+
 installed_version = host.get_fact(Command, "xray version 2>/dev/null | head -1 | awk '{print $2}'")
-if installed_version != xray_version:
+unit_user = (host.get_fact(Command, "grep -E '^User=' /etc/systemd/system/xray.service 2>/dev/null | tail -1 | cut -d= -f2") or "").strip()
+if installed_version != xray_version or unit_user != "xray":
     notify("xray", server.shell(
-        name=f"Install xray-core v{xray_version}",
-        commands=[f'bash -c "$(curl -fsSL https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install --version {xray_version}']))
+        name=f"Install xray-core v{xray_version} as xray user",
+        commands=[f'bash -c "$(curl -fsSL https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install --version {xray_version} --install-user xray --force']))
 
 CLIENTROTATE_LOCAL = "xrayvpn/target/clientrotate"
 CLIENTROTATE_REMOTE = "/usr/local/bin/clientrotate"
