@@ -35,7 +35,12 @@ func main() {
 
 	rules, err := loadRoutingRules()
 	if err != nil {
-		slog.Error("load routing rules", "err", err)
+		slog.Error("load routing rules, falling back to allow-all", "err", err)
+		rules = []xrayconf.RouteRule{{
+			Type:        "field",
+			OutboundTag: hstdlib.DirectTag,
+			Network:     "tcp,udp",
+		}}
 	}
 
 	if err := rotate(uuids, flow, rules); err != nil {

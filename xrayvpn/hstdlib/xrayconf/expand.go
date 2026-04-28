@@ -3,9 +3,8 @@ package xrayconf
 import "github.com/realglebivanov/hstd/hstdlib"
 
 func InvertRules(rules []RouteRule) []RouteRule {
-	out := make([]RouteRule, len(rules)+1)
-
-	for i, r := range rules {
+	out := make([]RouteRule, 0, len(rules)+1)
+	for _, r := range rules {
 		switch r.OutboundTag {
 		case hstdlib.DirectTag:
 			r.OutboundTag = hstdlib.BlockTag
@@ -14,8 +13,7 @@ func InvertRules(rules []RouteRule) []RouteRule {
 		default:
 			continue
 		}
-
-		out[i] = r
+		out = append(out, r)
 	}
 	out = append(out, RouteRule{
 		Type:        "field",
