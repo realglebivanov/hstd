@@ -81,10 +81,10 @@ func buildProxyOutbound(clientID string, srv *ServerConfig) *xrayconf.Outbound {
 	if srv.XHTTPPath != "" {
 		return buildXHTTPOutbound(clientID, srv)
 	}
-	return buildRealityOutbound(clientID, srv)
+	return buildTCPOutbound(clientID, srv)
 }
 
-func buildRealityOutbound(clientID string, srv *ServerConfig) *xrayconf.Outbound {
+func buildTCPOutbound(clientID string, srv *ServerConfig) *xrayconf.Outbound {
 	return &xrayconf.Outbound{
 		Tag:      hstdlib.ProxyTag,
 		Protocol: "vless",
@@ -131,7 +131,9 @@ func buildXHTTPOutbound(clientID string, srv *ServerConfig) *xrayconf.Outbound {
 			Network:  "xhttp",
 			Security: "tls",
 			TLSSettings: &xrayconf.TLSConfig{
-				ServerName: srv.Host,
+				ServerName:       srv.Host,
+				Fingerprint:      "safari",
+				CurvePreferences: []string{"X25519", "CurveP256"},
 			},
 			XHTTPSettings: &xrayconf.XHTTPConfig{
 				Path:              srv.XHTTPPath,

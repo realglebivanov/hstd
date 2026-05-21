@@ -84,8 +84,10 @@ type StreamConfig struct {
 }
 
 type TLSConfig struct {
-	ServerName   string        `json:"serverName,omitempty"`
-	Certificates []Certificate `json:"certificates,omitempty"`
+	ServerName       string        `json:"serverName,omitempty"`
+	Certificates     []Certificate `json:"certificates,omitempty"`
+	Fingerprint      string        `json:"fingerprint,omitempty"`
+	CurvePreferences []string      `json:"curvePreferences,omitempty"`
 }
 
 type Certificate struct {
